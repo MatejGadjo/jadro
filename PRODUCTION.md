@@ -290,12 +290,13 @@ jobs:
 ```
 
 ### Checklist
-- [ ] Write `Dockerfile` (backend, multi-stage)
-- [ ] Write `Dockerfile` (frontend, nginx static)
-- [ ] Write production `docker-compose.yml`
-- [ ] Write `.github/workflows/test.yml` (run `go test ./...` + `npm run build` on PR)
-- [ ] Write `.github/workflows/deploy.yml` (deploy on merge to main)
-- [ ] Create `.env.example` for backend and frontend
+- [x] Write `Dockerfile` (backend, multi-stage)
+- [x] Write `Dockerfile` (frontend, nginx static)
+- [x] Write production `docker-compose.yml`
+- [x] Write `.github/workflows/test.yml` — Go tests + frontend build on every push/PR (Go version from `go.mod`, Node 24, npm cache)
+- [x] Write `.github/workflows/deploy.yml` — SSH deploy on merge to main (`VPS_HOST`, `VPS_USER`, `VPS_SSH_KEY`, `VPS_APP_DIR` secrets; dormant until VPS is provisioned)
+- [x] Create `.env.example` for backend and frontend
+- [ ] Wire `needs: [test-backend, build-frontend]` into deploy job once tests pass in CI
 - [ ] Document model file download steps in deployment guide
 
 ---
@@ -446,7 +447,7 @@ The Dispatcher is a pure in-memory job queue. On server restart, any queued embe
 | CORS restriction | ✅ Done (`ALLOWED_ORIGINS` env var, 10s timeout) | Medium |
 | Prometheus metrics | ❌ Not started | Medium |
 | Extended /health endpoint | ✅ Done (redis, article/cluster counts, embedding_enabled) | Medium |
-| CI/CD pipeline | ❌ Not started | Medium |
+| CI/CD pipeline | ✅ Done (`test.yml` on every push, `deploy.yml` on main — SSH deploy dormant until VPS provisioned) | Medium |
 | DB cleanup job (3-day retention) | ✅ Done (`CLEANUP_CRON`, `CLEANUP_RETENTION_DAYS`, COALESCE fallback) | High |
 | Analytics / visitor tracking | ❌ Not started | Medium |
 | Stale embedding recovery on startup | ✅ Done (`processing`+`pending` → `failed` on startup, logs counts) | Low |
