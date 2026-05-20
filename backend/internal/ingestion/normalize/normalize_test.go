@@ -36,7 +36,7 @@ func TestNormalizeArticle(t *testing.T) {
 			snippet:        "Ова е тест.",
 			wantTitle:      "видео: скопје–тетово: хаос на патот",
 			wantSnippet:    "Ова е тест.",
-			wantSnippetLen: 11,
+			wantSnippetLen: len("Ова е тест."),
 		},
 		{
 			name:           "title strips trailing known source suffix",
@@ -44,7 +44,7 @@ func TestNormalizeArticle(t *testing.T) {
 			snippet:        "Ова е тест.",
 			wantTitle:      "еу: нов пакет санкции - миа",
 			wantSnippet:    "Ова е тест.",
-			wantSnippetLen: 11,
+			wantSnippetLen: len("Ова е тест."),
 		},
 		{
 			name:           "title decodes html entities and keeps boundaries",
@@ -52,7 +52,7 @@ func TestNormalizeArticle(t *testing.T) {
 			snippet:        "Ова е тест.",
 			wantTitle:      "apple \"vision pro\" — цена/датум",
 			wantSnippet:    "Ова е тест.",
-			wantSnippetLen: 11,
+			wantSnippetLen: len("Ова е тест."),
 		},
 		{
 			name:           "title removes bracketed video/photo tags but keeps year",
@@ -60,7 +60,7 @@ func TestNormalizeArticle(t *testing.T) {
 			snippet:        "Ова е тест.",
 			wantTitle:      "избори (2024) (фото) [видео]",
 			wantSnippet:    "Ова е тест.",
-			wantSnippetLen: 11,
+			wantSnippetLen: len("Ова е тест."),
 		},
 		{
 			name:           "snippet with HTML",
@@ -76,7 +76,7 @@ func TestNormalizeArticle(t *testing.T) {
 			snippet:        "This &amp; that &lt;test&gt;",
 			wantTitle:      "entity test",
 			wantSnippet:    "This & that <test>",
-			wantSnippetLen: 16,
+			wantSnippetLen: len("This & that <test>"),
 		},
 		{
 			name:           "long snippet truncation",
@@ -115,7 +115,7 @@ func TestNormalizeArticle(t *testing.T) {
 			snippet:        "Ова е тест.",
 			wantTitle:      "македонска вест!",
 			wantSnippet:    "Ова е тест.",
-			wantSnippetLen: 11,
+			wantSnippetLen: len("Ова е тест."),
 		},
 		{
 			name:           "mixed HTML and entities",
@@ -244,31 +244,31 @@ func TestCleanSnippet(t *testing.T) {
 			name:    "simple text",
 			input:   "Simple text snippet.",
 			want:    "Simple text snippet.",
-			wantLen: 21,
+			wantLen: len("Simple text snippet."),
 		},
 		{
 			name:    "with HTML tags",
 			input:   "<p>Text with <strong>tags</strong>.</p>",
 			want:    "Text with tags.",
-			wantLen: 16,
+			wantLen: len("Text with tags."),
 		},
 		{
 			name:    "with HTML entities",
 			input:   "Text &amp; more &lt;test&gt;",
 			want:    "Text & more <test>",
-			wantLen: 16,
+			wantLen: len("Text & more <test>"),
 		},
 		{
 			name:    "with newlines",
 			input:   "Line 1\nLine 2\nLine 3",
 			want:    "Line 1 Line 2 Line 3",
-			wantLen: 19,
+			wantLen: len("Line 1 Line 2 Line 3"),
 		},
 		{
 			name:    "with extra spaces",
 			input:   "Text   with    spaces",
 			want:    "Text with spaces",
-			wantLen: 17,
+			wantLen: len("Text with spaces"),
 		},
 		{
 			name:    "empty string",
