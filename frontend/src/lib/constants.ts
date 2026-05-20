@@ -1,0 +1,1 @@
+export const TOPIC_FEED_INLINE_AD_CADENCE = 2

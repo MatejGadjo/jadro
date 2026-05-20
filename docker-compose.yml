@@ -1,0 +1,64 @@
+services:
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - backend
+      - frontend
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    environment:
+      DATABASE_URL: postgres://news:${POSTGRES_PASSWORD}@postgres:5432/newsaggregator?sslmode=disable
+      REDIS_URL: redis://redis:6379
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-}
+      INGEST_CRON: ${INGEST_CRON:-*/15 * * * *}
+      CLEANUP_CRON: ${CLEANUP_CRON:-0 3 * * *}
+      CLEANUP_RETENTION_DAYS: ${CLEANUP_RETENTION_DAYS:-3}
+      ONNX_RUNTIME_LIB_PATH: /app/models/onnxruntime-linux-x64-1.23.2/lib/libonnxruntime.so
+      ONNX_MODEL_PATH: /app/models/paraphrase-multilingual-MiniLM-L12-v2/model.onnx
+      ONNX_TOKENIZER_PATH: /app/models/paraphrase-multilingual-MiniLM-L12-v2/tokenizer.json
+    volumes:
+      - ./backend/models:/app/models:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+
+  postgres:
+    image: pgvector/pgvector:pg17
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_DB: newsaggregator
+      POSTGRES_USER: news
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U news -d newsaggregator"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+
+volumes:
+  postgres_data:

@@ -1,0 +1,52 @@
+[
+  {
+    "pattern": "/(sport|sports)(/|$)",
+    "category": "SPORT",
+    "strength": "strong"
+  },
+  {
+    "pattern": "/(ekonomija|biznis|business|finance)(/|$)",
+    "category": "EKONOMIJA",
+    "strength": "strong"
+  },
+  {
+    "pattern": "/(tehnologija|tehnologija-it|tech|technology|it)(/|$)",
+    "category": "TECHNOLOGY",
+    "strength": "strong"
+  },
+  {
+    "pattern": "/(hronika|crna-hronika|crime)(/|$)",
+    "category": "HRONIKA",
+    "strength": "strong"
+  },
+  {
+    "pattern": "/(kultura|culture)(/|$)",
+    "category": "KULTURA",
+    "strength": "strong"
+  },
+  {
+    "pattern": "/(scena|zabava|showbiz|entertainment|lifestyle)(/|$)",
+    "category": "SCENA",
+    "strength": "strong"
+  },
+  {
+    "pattern": "/(skopje)(/|$)",
+    "category": "SKOPJE",
+    "strength": "strong"
+  },
+  {
+    "pattern": "/(region|balkan)(/|$)",
+    "category": "REGION",
+    "strength": "strong"
+  },
+  {
+    "pattern": "/(svet|world|international)(/|$)",
+    "category": "SVET",
+    "strength": "strong"
+  },
+  {
+    "pattern": "/(makedonija|domashno|home)(/|$)",
+    "category": "MAKEDONIJA",
+    "strength": "strong"
+  }
+]
