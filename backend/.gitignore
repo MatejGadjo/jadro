@@ -1,0 +1,97 @@
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test binary, built with `go test -c`
+*.test
+
+# Output of the go coverage tool
+*.out
+coverage.html
+coverage.xml
+
+# Dependency directories
+vendor/
+
+# Go workspace file
+go.work
+go.work.sum
+
+# Build artifacts
+/bin/
+/dist/
+/build/
+*.a
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+.envrc
+
+# IDE and editor files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+*.sublime-project
+*.sublime-workspace
+
+# OS-specific files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log
+logs/
+*.log.*
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+*.db-shm
+*.db-wal
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.bak
+*.cache
+
+# Migration files (if using migrate CLI, keep migrations but ignore generated files)
+# migrations/*.down.sql and migrations/*.up.sql should be tracked
+
+# Local configuration overrides
+config.local.*
+*.local.yaml
+*.local.yml
+*.local.json
+
+# Debug and profiling files
+debug
+*.prof
+*.pprof
+debug_cluster.sql
+
+# Air (live reload) files
+tmp/
+
+# Docker
+.dockerignore
+docker-compose.override.yml
+
+# ML models and ONNX runtime (large binaries, download separately)
+models/
