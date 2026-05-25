@@ -62,6 +62,16 @@ func (s *Scheduler) Stop() {
 	s.cron.Stop()
 }
 
+// RunOnce fires a single ingest+rescore cycle in a new goroutine.
+// Returns false if a run is already in progress (caller should respond 409).
+func (s *Scheduler) RunOnce() bool {
+	if s.running.Load() {
+		return false
+	}
+	go s.run()
+	return true
+}
+
 func (s *Scheduler) run() {
 	if !s.running.CompareAndSwap(false, true) {
 		s.log.Warnw("ingest skipped: previous run still in progress")

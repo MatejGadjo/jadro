@@ -2,7 +2,7 @@ services:
   nginx:
     image: nginx:alpine
     ports:
-      - "80:80"
+      - "8000:80"
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
     depends_on:
@@ -17,7 +17,10 @@ services:
     environment:
       DATABASE_URL: postgres://news:${POSTGRES_PASSWORD}@postgres:5432/newsaggregator?sslmode=disable
       REDIS_URL: redis://redis:6379
+      APP_ENV: ${APP_ENV:-development}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
       ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-}
+      INTERNAL_API_TOKEN: ${INTERNAL_API_TOKEN:-}
       INGEST_CRON: ${INGEST_CRON:-*/15 * * * *}
       CLEANUP_CRON: ${CLEANUP_CRON:-0 3 * * *}
       CLEANUP_RETENTION_DAYS: ${CLEANUP_RETENTION_DAYS:-3}
@@ -58,6 +61,8 @@ services:
 
   redis:
     image: redis:7-alpine
+    ports:
+      - "6379:6379"
     restart: unless-stopped
 
 volumes:

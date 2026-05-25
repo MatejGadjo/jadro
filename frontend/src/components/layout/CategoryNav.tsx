@@ -1,5 +1,6 @@
 import { Link, useParams, useRouterState } from '@tanstack/react-router'
 import { TOPIC_ITEMS } from '@/lib/topics'
+import { trackEvent } from '@/analytics'
 
 const navItems = [
   { id: 'home', label: 'Почетна', path: '/' },
@@ -45,6 +46,7 @@ export default function CategoryNav() {
                   key={topicItem.id}
                   to="/$topic"
                   params={{ topic: topicItem.id }}
+                  onClick={() => trackEvent('topic_select', { topic: topicItem.id })}
                   className={[
                     'whitespace-nowrap px-4 py-2.5 text-xs font-semibold tracking-widest uppercase transition-colors duration-150 border-b-2',
                     isActive

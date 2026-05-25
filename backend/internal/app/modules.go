@@ -71,6 +71,7 @@ var Module = fx.Options(
 		handlers.NewFeedHandler,
 		handlers.NewHealthHandler,
 		handlers.NewClusterHandler,
+		handlers.NewInternalHandler,
 		middleware.NewRateLimiter,
 		http.NewServer,
 	),

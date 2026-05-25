@@ -46,6 +46,10 @@ type Config struct {
 	// AllowedOrigins is a comma-separated list of allowed CORS origins.
 	// Empty string means all origins are allowed (wildcard). Replace with your domain in production.
 	AllowedOrigins []string
+
+	// InternalAPIToken is the static bearer token required to call /internal/* routes.
+	// Must be set in production; empty = no-op guard in development.
+	InternalAPIToken string
 }
 
 func Load() (*Config, error) {
@@ -97,6 +101,14 @@ func Load() (*Config, error) {
 				c.AllowedOrigins = append(c.AllowedOrigins, trimmed)
 			}
 		}
+	}
+
+	c.InternalAPIToken = os.Getenv("INTERNAL_API_TOKEN")
+	if c.InternalAPIToken == "" {
+		if c.Env == "production" {
+			return nil, fmt.Errorf("INTERNAL_API_TOKEN is required in production")
+		}
+		log.Printf("WARNING: INTERNAL_API_TOKEN is not set — /internal/* routes are unprotected")
 	}
 
 	return c, nil

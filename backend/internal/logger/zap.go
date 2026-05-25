@@ -24,6 +24,12 @@ func NewLogger() (*Logger, error) {
 		cfg = zap.NewProductionConfig()
 	}
 
+	if levelStr := os.Getenv("LOG_LEVEL"); levelStr != "" {
+		if level, err := zap.ParseAtomicLevel(levelStr); err == nil {
+			cfg.Level = level
+		}
+	}
+
 	base, err := cfg.Build()
 	if err != nil {
 		return nil, err
