@@ -26,6 +26,7 @@ func NewServer(
 	feed *handlers.FeedHandler,
 	health *handlers.HealthHandler,
 	cluster *handlers.ClusterHandler,
+	internal *handlers.InternalHandler,
 	rl *middleware.RateLimiter,
 ) *nethttp.Server {
 	r := gin.New()
@@ -42,7 +43,7 @@ func NewServer(
 	r.Use(gin.Recovery())
 	r.Use(middleware.Timeout(handlerTimeout))
 
-	RegisterRoutes(r, feed, health, cluster, rl)
+	RegisterRoutes(r, cfg, feed, health, cluster, internal, rl)
 
 	srv := &nethttp.Server{
 		Addr:              cfg.HTTPAddr,

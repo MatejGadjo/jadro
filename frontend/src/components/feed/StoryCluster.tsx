@@ -1,5 +1,6 @@
 import { Link } from '@tanstack/react-router'
 import { clearArticleImage } from '@/api/cluster'
+import { trackEvent } from '@/analytics'
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { ArrowRight, Layers } from 'lucide-react'
@@ -54,7 +55,7 @@ function SourceBadge({ article }: { article: MockArticle }) {
 
 function FeaturedArticle({ article }: { article: MockArticle }) {
   return (
-    <a href={article.url} target="_blank" rel="noopener noreferrer" className="group flex flex-col h-full">
+    <a href={article.url} target="_blank" rel="noopener noreferrer" onClick={() => trackEvent('article_click', { source: article.source.name })} className="group flex flex-col h-full">
       {article.imageUrl && (
         <div className="relative w-full aspect-video overflow-hidden bg-muted mb-2 rounded-sm">
           <img
@@ -114,6 +115,7 @@ function ArticleRow({ article }: { article: MockArticle }) {
       href={article.url}
       target="_blank"
       rel="noopener noreferrer"
+      onClick={() => trackEvent('article_click', { source: article.source.name })}
       className="group flex items-start gap-3 py-2.5 border-t border-border/60 first:border-t-0 hover:bg-accent/40 -mx-3 px-3 transition-colors duration-100"
     >
       <Avatar className="w-5 h-5 rounded-sm ring-1 ring-border/50 shrink-0 mt-0.5">
@@ -160,6 +162,7 @@ function FeaturedArticleRow({ article, fill = true }: { article: MockArticle; fi
       href={article.url}
       target="_blank"
       rel="noopener noreferrer"
+      onClick={() => trackEvent('article_click', { source: article.source.name })}
       className={`group flex flex-col px-3 py-2 border-t border-border/60 first:border-t-0 hover:bg-accent/40 transition-colors duration-100 ${fill ? 'flex-1 min-h-0' : 'min-h-18'}`}
     >
       <div className="flex items-center gap-1.5 mb-1">
@@ -205,6 +208,7 @@ function CompanionArticle({ article }: { article: MockArticle }) {
       href={article.url}
       target="_blank"
       rel="noopener noreferrer"
+      onClick={() => trackEvent('article_click', { source: article.source.name })}
       className="group flex flex-col pl-4 border-l border-border/60 hover:bg-accent/40 transition-colors duration-100 rounded-sm"
     >
       <div className="flex items-center gap-1.5 mb-2">
@@ -267,6 +271,7 @@ function HorizontalArticleCard({ article }: { article: MockArticle }) {
       href={article.url}
       target="_blank"
       rel="noopener noreferrer"
+      onClick={() => trackEvent('article_click', { source: article.source.name })}
       className="group flex flex-col w-52 shrink-0 bg-card border border-border rounded-sm p-3 hover:border-editorial/40 transition-colors duration-150"
     >
       <div className="flex items-center gap-1.5 mb-2">
@@ -432,7 +437,7 @@ export default function StoryCluster({ cluster, featured = false, embedded = fal
 
         {mainArticle && (
           <div className="mb-1">
-            <a href={mainArticle.url} target="_blank" rel="noopener noreferrer" className="group block">
+            <a href={mainArticle.url} target="_blank" rel="noopener noreferrer" onClick={() => trackEvent('article_click', { source: mainArticle.source.name })} className="group block">
               <div className="flex items-center gap-2 mb-1.5">
                 <SourceBadge article={mainArticle} />
               </div>
