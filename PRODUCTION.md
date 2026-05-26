@@ -4,7 +4,9 @@
 
 ## What's Built (Architecture Reference)
 
-**Stack**: Cloudflare → nginx (TLS, static files, rate limit) → Go/Gin backend (:8080) → PostgreSQL + pgvector + Redis
+**Stack**: Cloudflare → nginx (TLS, SSL terminator) → docker-compose nginx (:8000) → Go/Gin backend (:8080) → PostgreSQL + pgvector + Redis
+
+**Deployed at**: reservelt.co (temp) → jadro.mk (when purchased). Hetzner CX23, Helsinki. Ubuntu 24.04 LTS. Repo cloned at `/opt/jadro`.
 
 **Scheduler**: robfig/cron in-process. `INGEST_CRON` (default `*/15 * * * *`), fires on startup, atomic overlap guard, rescore after every ingest. Cleanup job: `CLEANUP_CRON` (default `0 3 * * *`), `CLEANUP_RETENTION_DAYS=3` (deletes cluster_articles → articles → empty clusters).
 
@@ -26,30 +28,33 @@
 
 **Stale embeddings**: On startup, `processing` + `pending` rows → `failed`, then re-enqueued.
 
-**CI/CD**: `test.yml` runs Go tests + frontend build on every push/PR. `deploy.yml` gates on both before SSH deploy to VPS (`git pull → docker compose up -d --build`). Dormant until VPS secrets provisioned.
+**CI/CD**: `test.yml` runs Go tests + frontend build on every push/PR. `deploy.yml` gates on both before SSH deploy to VPS (`git pull → docker compose up -d --build`). Dormant until GitHub Actions secrets provisioned.
 
 ---
 
 ## Open Items
 
 ### Deployment
-- [ ] **Decide Redis hosting**: self-hosted on VPS (free, SPOF) vs. Upstash free tier (10k cmds/day, 256 MB, survives VPS restart)
-- [ ] Document model file download steps (libonnxruntime.so + model.onnx — not in git, must be on VPS before first deploy)
+- [x] Redis hosting — self-hosted in docker-compose (already wired, zero config)
+- [x] Model file download steps documented in README
+- [x] Download ML models on VPS (`/opt/jadro/backend/models/`) — see README for commands
+- [ ] Wire up GitHub Actions secrets (`VPS_HOST`, `VPS_USER`, `VPS_SSH_KEY`, `VPS_APP_DIR`) to enable auto-deploy on push
+- [ ] Switch domain from reservelt.co → jadro.mk when purchased (update A record + `ALLOWED_ORIGINS`)
 
 ### Security
-- [ ] Put app behind Cloudflare free plan or nginx `limit_req_zone` — first DDoS/bot wall before Go middleware
+- [x] App behind Cloudflare free plan — Cloudflare Origin Certificate for TLS, Full (strict) mode
 - [x] Protect `/internal/*` routes with bearer token — `INTERNAL_API_TOKEN` env var; required in production, no-op when empty in dev. `POST /internal/ingest` triggers a manual ingest cycle.
-- [ ] Run `/security-review` after security changes
+- [x] Security review completed — constant-time token comparison, startup warning for missing token, 409 on double-ingest
 
 ### Monitoring
-- [x] `LOG_LEVEL` env var — `debug`/`info`/`warn`/`error`, overrides default per `APP_ENV`. Invalid value = silent fallback to default.
-- [ ] Alerting: set up uptime monitor (e.g. UptimeRobot free tier) on `/api/health` once deployed
+- [x] `LOG_LEVEL` env var — `debug`/`info`/`warn`/`error`, overrides default per `APP_ENV`.
+- [ ] Alerting: set up UptimeRobot free tier → monitor `https://reservelt.co/api/health`
 
 ### Analytics
-- [x] GA4 wired in cookieless mode — `VITE_GA_MEASUREMENT_ID` env var (empty = disabled in dev). No cookies, no consent banner. `trackEvent()` helper in `src/analytics.ts` for custom events.
-- [x] Cloudflare Analytics — zero config, automatic once behind Cloudflare
-- [ ] Create GA4 property, set `VITE_GA_MEASUREMENT_ID=G-XXXXXXXXXX` in production env
-- [x] Add custom events: `topic_select` (topic param) on nav click, `article_click` (source param) on all outbound article links
+- [x] GA4 wired in cookieless mode — `VITE_GA_MEASUREMENT_ID` env var (empty = disabled in dev). No cookies, no consent banner.
+- [x] Cloudflare Analytics — automatic, already active
+- [x] Custom events: `topic_select` on nav click, `article_click` on all outbound article links
+- [ ] Create GA4 property → get `G-XXXXXXXXXX` → add to `/opt/jadro/.env` → `docker compose up -d --build`
 
 ### README
 - [x] Prerequisites, Quick Start, env vars table, ML model download instructions, API reference, architecture, deployment guide link
@@ -209,8 +214,13 @@ curl http://localhost:8080/api/health
 | CI/CD pipeline (test gate + SSH deploy) | ✅ Done | Medium |
 | Stale embedding recovery on startup | ✅ Done | Low |
 | .env.example files | ✅ Done | Low |
-| Redis hosting decision | ⏳ Decide at deploy time | High |
+| Redis hosting decision | ✅ Self-hosted in docker-compose | High |
 | LOG_LEVEL env var | ✅ Done | Medium |
-| Cloudflare / nginx in front of app | ❌ Infra — do at deploy time | Medium |
-| Analytics / visitor tracking | ✅ Done (GA4 cookieless + Cloudflare at deploy) | Medium |
+| Cloudflare / nginx in front of app | ✅ Done — Cloudflare + Origin Cert + Full strict | Medium |
+| VPS provisioned + site live | ✅ Done — reservelt.co (Hetzner CX23 Helsinki) | High |
+| Analytics / visitor tracking | ✅ Done (GA4 cookieless + Cloudflare active) | Medium |
 | README expansion | ✅ Done | Low |
+| ML models on VPS | ✅ Done | Medium |
+| GitHub Actions auto-deploy | ❌ Secrets not set | Medium |
+| GA4 property created | ❌ Needs account action | Low |
+| UptimeRobot alerting | ❌ Needs account action | Low |
