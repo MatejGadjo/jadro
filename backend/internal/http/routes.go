@@ -19,6 +19,7 @@ func RegisterRoutes(
 ) {
 	api := r.Group("/api")
 	api.GET("/health", health.Get)
+	api.HEAD("/health", health.Get)
 	api.GET("/feed", rl.Limit(redis_rate.PerMinute(30)), feed.GetFeed)
 	api.GET("/articles/latest", rl.Limit(redis_rate.PerMinute(60)), cluster.GetLatestArticles)
 	api.GET("/clusters/:id", rl.Limit(redis_rate.PerMinute(60)), cluster.GetCluster)
