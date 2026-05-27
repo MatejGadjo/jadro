@@ -1,0 +1,27 @@
+{
+  "name": "jadro.mk — Македонски Новинарски Агрегатор",
+  "short_name": "jadro.mk",
+  "description": "Македонски агрегатор на вести. Следи ги најважните приказни од сите извори на едно место.",
+  "start_url": "/",
+  "display": "browser",
+  "background_color": "#f7f3eb",
+  "theme_color": "#b42828",
+  "lang": "mk",
+  "icons": [
+    {
+      "src": "/favicon-32x32.png",
+      "sizes": "32x32",
+      "type": "image/png"
+    },
+    {
+      "src": "/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    },
+    {
+      "src": "/favicon.png",
+      "sizes": "1254x1254",
+      "type": "image/png"
+    }
+  ]
+}
