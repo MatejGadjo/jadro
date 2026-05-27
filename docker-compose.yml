@@ -44,8 +44,6 @@ services:
 
   postgres:
     image: pgvector/pgvector:pg17
-    ports:
-      - "5433:5432"
     environment:
       POSTGRES_DB: newsaggregator
       POSTGRES_USER: news
@@ -61,8 +59,6 @@ services:
 
   redis:
     image: redis:7-alpine
-    ports:
-      - "6379:6379"
     restart: unless-stopped
 
 volumes:
