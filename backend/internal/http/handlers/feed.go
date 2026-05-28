@@ -374,6 +374,85 @@ func (h *FeedHandler) buildCategoryHomepageSections(ctx context.Context) ([]home
 	return out, nil
 }
 
+// WarmCache pre-populates Redis with feed and cluster responses for all topics + homepage.
+// Called in a goroutine after each successful ingest+rescore cycle.
+func (h *FeedHandler) WarmCache(ctx context.Context, ch *ClusterHandler) {
+	if h.cache == nil {
+		return
+	}
+
+	feedVersion := h.readFeedVersion(ctx)
+	clusterIDs := make(map[int64]struct{})
+
+	for _, topicStr := range topics.AllTopics() {
+		t := topicStr
+		clusters, err := postgres.ListClustersForFeed(ctx, h.pool, h.log, feedLimit, 0, &t)
+		if err != nil {
+			h.log.Warnw("cache warm: topic feed query failed", "topic", t, "error", err)
+			continue
+		}
+		resp := gin.H{
+			"feed_version":             feedVersion,
+			"clusters":                 clusters,
+			"featured_clusters":        []homepageClusterSectionDTO{},
+			"top_clusters_by_category": []homepageClusterSectionDTO{},
+		}
+		if raw, err := json.Marshal(resp); err == nil {
+			key := h.feedCacheKey(&t, 0)
+			if err := h.cache.Set(ctx, key, raw, 20*time.Minute); err != nil {
+				h.log.Warnw("cache warm: topic feed write failed", "topic", t, "error", err)
+			}
+		}
+		for _, c := range clusters {
+			clusterIDs[c.ID] = struct{}{}
+		}
+	}
+
+	homeClusters, err := postgres.ListClustersForFeed(ctx, h.pool, h.log, feedLimit, 0, nil)
+	if err != nil {
+		h.log.Warnw("cache warm: homepage feed query failed", "error", err)
+	} else {
+		topCandidates, err := postgres.ListTopClustersByScore(ctx, h.pool, h.log, homepageCandidateN)
+		if err != nil {
+			h.log.Warnw("cache warm: homepage top clusters query failed", "error", err)
+		} else {
+			featured, _ := h.buildHomepageSections(ctx, topCandidates, featuredClusterCount, featuredMaxSources, false)
+			byCategory, _ := h.buildCategoryHomepageSections(ctx)
+			if featured == nil {
+				featured = []homepageClusterSectionDTO{}
+			}
+			if byCategory == nil {
+				byCategory = []homepageClusterSectionDTO{}
+			}
+			resp := gin.H{
+				"feed_version":             feedVersion,
+				"clusters":                 homeClusters,
+				"featured_clusters":        featured,
+				"top_clusters_by_category": byCategory,
+			}
+			if raw, err := json.Marshal(resp); err == nil {
+				key := h.feedCacheKey(nil, 0)
+				if err := h.cache.Set(ctx, key, raw, 20*time.Minute); err != nil {
+					h.log.Warnw("cache warm: homepage feed write failed", "error", err)
+				}
+			}
+		}
+		for _, c := range homeClusters {
+			clusterIDs[c.ID] = struct{}{}
+		}
+	}
+
+	warmed := 0
+	for id := range clusterIDs {
+		if _, _, errMsg := ch.buildClusterJSON(ctx, id); errMsg == "" {
+			warmed++
+		} else {
+			h.log.Warnw("cache warm: cluster build failed", "cluster_id", id, "error", errMsg)
+		}
+	}
+	h.log.Infow("cache warm completed", "clusters_warmed", warmed)
+}
+
 func articleOrderTime(publishedAt *time.Time, fetchedAt time.Time) time.Time {
 	if publishedAt != nil {
 		return *publishedAt

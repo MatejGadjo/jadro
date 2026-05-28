@@ -1,4 +1,4 @@
-import { createRootRoute, createRoute, Outlet } from '@tanstack/react-router'
+import { createRootRoute, createRoute, Outlet, useParams } from '@tanstack/react-router'
 import HomePage from './pages/HomePage'
 import FeedPage from './pages/FeedPage'
 import ClusterPage from './pages/ClusterPage'
@@ -32,7 +32,10 @@ const indexRoute = createRoute({
 const topicRoute = createRoute({
   getParentRoute: () => layoutRoute,
   path: '/$topic',
-  component: FeedPage,
+  component: () => {
+    const { topic } = useParams({ strict: false })
+    return <FeedPage key={topic ?? '__none__'} />
+  },
 })
 
 // Cluster route - /cluster/$clusterId

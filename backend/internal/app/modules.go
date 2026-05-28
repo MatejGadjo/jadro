@@ -49,7 +49,7 @@ var Module = fx.Options(
 		jobs.NewDispatcher,
 		jobs.NewPipeline,
 		jobs.NewRescoreJob,
-		func(cfg *config.Config, log *logger.Logger, pool *pgxpool.Pool, pipeline *jobs.Pipeline, rescore *jobs.RescoreJob, cacheClient *cache.Client) *jobs.Scheduler {
+		func(cfg *config.Config, log *logger.Logger, pool *pgxpool.Pool, pipeline *jobs.Pipeline, rescore *jobs.RescoreJob, cacheClient *cache.Client, feedHandler *handlers.FeedHandler, clusterHandler *handlers.ClusterHandler) *jobs.Scheduler {
 			ingest := func(ctx context.Context) (int, error) {
 				return rss.StartRSSIngestion(ctx, pool, log, pipeline)
 			}
@@ -63,6 +63,10 @@ var Module = fx.Options(
 					if err := cacheClient.DeleteByPattern(ctx, "feed:*"); err != nil {
 						log.Warnw("feed cache invalidation failed", "error", err)
 					}
+					if err := cacheClient.DeleteByPattern(ctx, "cluster:*"); err != nil {
+						log.Warnw("cluster cache invalidation failed", "error", err)
+					}
+					go feedHandler.WarmCache(context.Background(), clusterHandler)
 				})
 			}
 			return s
