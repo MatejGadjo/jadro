@@ -35,11 +35,11 @@ export default function FeedPage() {
     }
   }, [topicValue])
 
-  const { data, isLoading, error, isPlaceholderData } = useFeed(topicValue ?? '', page, Boolean(topicValue))
+  const { data, isLoading, error } = useFeed(topicValue ?? '', page, Boolean(topicValue))
 
   // Accumulate cluster IDs as pages load
   useEffect(() => {
-    if (!data?.clusters || isPlaceholderData) return
+    if (!data?.clusters) return
     const newIds = data.clusters.map((c) => c.id)
     setAllClusterIds((prev) => {
       const existing = new Set(prev)
@@ -47,7 +47,7 @@ export default function FeedPage() {
       return fresh.length > 0 ? [...prev, ...fresh] : prev
     })
     setHasMore(newIds.length >= FEED_PAGE_SIZE)
-  }, [data, isPlaceholderData])
+  }, [data])
 
   const clusterQueries = useQueries({
     queries: allClusterIds.map((clusterID) => ({

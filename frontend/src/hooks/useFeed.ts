@@ -1,4 +1,4 @@
-import { useQuery, keepPreviousData } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { useRef } from 'react';
 import { fetchFeed } from '../api/feed';
 import { queryKeys } from '../api/queryKeys';
@@ -16,7 +16,6 @@ export function useFeed(topic: string, page: number, enabled = true) {
     enabled,
     staleTime: 5 * 60 * 1000,
     retry: 2,
-    placeholderData: keepPreviousData,
     select: (data) => {
       const version = data.feed_version ?? 0;
       if (
