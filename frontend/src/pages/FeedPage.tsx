@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { useParams } from '@tanstack/react-router'
 import { useQueries } from '@tanstack/react-query'
 import FeedEmpty from '@/components/feed/FeedEmpty'
@@ -23,17 +23,6 @@ export default function FeedPage() {
   const [page, setPage] = useState(0)
   const [allClusterIds, setAllClusterIds] = useState<number[]>([])
   const [hasMore, setHasMore] = useState(true)
-  const prevTopicRef = useRef(topicValue)
-
-  // Reset when topic changes
-  useEffect(() => {
-    if (prevTopicRef.current !== topicValue) {
-      prevTopicRef.current = topicValue
-      setPage(0)
-      setHasMore(true)
-      setAllClusterIds([])
-    }
-  }, [topicValue])
 
   const { data, isLoading, error } = useFeed(topicValue ?? '', page, Boolean(topicValue))
 

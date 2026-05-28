@@ -1,10 +1,14 @@
 package handlers
 
 import (
+	"context"
+	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
 	"time"
 
+	"github.com/MatejGadjo/NewsAggregator/internal/cache"
 	"github.com/MatejGadjo/NewsAggregator/internal/logger"
 	"github.com/MatejGadjo/NewsAggregator/internal/storage"
 	"github.com/MatejGadjo/NewsAggregator/internal/storage/postgres"
@@ -13,13 +17,16 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
+const clusterCacheTTL = 20 * time.Minute
+
 type ClusterHandler struct {
-	log  *logger.Logger
-	pool *pgxpool.Pool
+	log   *logger.Logger
+	pool  *pgxpool.Pool
+	cache *cache.Client
 }
 
-func NewClusterHandler(log *logger.Logger, pool *pgxpool.Pool) *ClusterHandler {
-	return &ClusterHandler{log: log, pool: pool}
+func NewClusterHandler(log *logger.Logger, pool *pgxpool.Pool, cache *cache.Client) *ClusterHandler {
+	return &ClusterHandler{log: log, pool: pool, cache: cache}
 }
 
 type clusterSourceDTO struct {
@@ -45,6 +52,10 @@ const (
 	latestArticlesDefault = 8
 	latestArticlesMax     = 20
 )
+
+func clusterCacheKey(id int64) string {
+	return fmt.Sprintf("cluster:%d", id)
+}
 
 // GetLatestArticles returns the most recently published article per cluster across all topics.
 // Used by the "Свежо" sidebar. Accepts optional ?limit=N (default 8, max 20).
@@ -102,33 +113,45 @@ func (h *ClusterHandler) GetCluster(c *gin.Context) {
 	idStr := c.Param("id")
 	clusterID, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil || clusterID <= 0 {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "invalid cluster id",
-		})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid cluster id"})
 		return
 	}
 
 	ctx := c.Request.Context()
 
+	if h.cache != nil {
+		if raw, err := h.cache.Get(ctx, clusterCacheKey(clusterID)); err == nil {
+			c.Data(http.StatusOK, "application/json; charset=utf-8", raw)
+			return
+		}
+	}
+
+	raw, status, errMsg := h.buildClusterJSON(ctx, clusterID)
+	if errMsg != "" {
+		c.JSON(status, gin.H{"error": errMsg})
+		return
+	}
+	c.Data(http.StatusOK, "application/json; charset=utf-8", raw)
+}
+
+// buildClusterJSON fetches cluster detail from DB, marshals to JSON, writes to cache, and returns the bytes.
+// Used by GetCluster and the cache warmer.
+func (h *ClusterHandler) buildClusterJSON(ctx context.Context, clusterID int64) (raw []byte, status int, errMsg string) {
 	cluster, err := postgres.GetClusterByID(ctx, h.pool, h.log, clusterID)
 	if err != nil {
 		h.log.Errorw("failed to fetch cluster", "cluster_id", clusterID, "error", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch cluster"})
-		return
+		return nil, http.StatusInternalServerError, "failed to fetch cluster"
 	}
 	if cluster == nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "cluster not found"})
-		return
+		return nil, http.StatusNotFound, "cluster not found"
 	}
 
 	articles, err := postgres.GetArticlesInCluster(ctx, h.pool, h.log, clusterID)
 	if err != nil {
 		h.log.Errorw("failed to fetch articles in cluster", "cluster_id", clusterID, "error", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch cluster articles"})
-		return
+		return nil, http.StatusInternalServerError, "failed to fetch cluster articles"
 	}
 
-	// Enrich articles with source metadata. Cache sources to avoid repeat DB calls.
 	sourceCache := make(map[int64]clusterSourceDTO, 16)
 	outArticles := make([]clusterArticleDTO, 0, len(articles))
 	for _, a := range articles {
@@ -137,13 +160,11 @@ func (h *ClusterHandler) GetCluster(c *gin.Context) {
 			s, err := postgres.GetSourceByID(ctx, h.pool, h.log, a.SourceID)
 			if err != nil {
 				h.log.Errorw("failed to fetch source for article", "source_id", a.SourceID, "article_id", a.ID, "error", err)
-				c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch article source"})
-				return
+				return nil, http.StatusInternalServerError, "failed to fetch article source"
 			}
 			if s == nil {
 				h.log.Warnw("source missing for article", "source_id", a.SourceID, "article_id", a.ID)
-				c.JSON(http.StatusInternalServerError, gin.H{"error": "source missing for article"})
-				return
+				return nil, http.StatusInternalServerError, "source missing for article"
 			}
 			src = clusterSourceDTO{
 				ID:      s.ID,
@@ -154,7 +175,6 @@ func (h *ClusterHandler) GetCluster(c *gin.Context) {
 			}
 			sourceCache[a.SourceID] = src
 		}
-
 		outArticles = append(outArticles, clusterArticleDTO{
 			ID:          a.ID,
 			URL:         a.URL,
@@ -167,8 +187,16 @@ func (h *ClusterHandler) GetCluster(c *gin.Context) {
 		})
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"cluster":  cluster,
-		"articles": outArticles,
-	})
+	raw, err = json.Marshal(gin.H{"cluster": cluster, "articles": outArticles})
+	if err != nil {
+		return nil, http.StatusInternalServerError, "failed to marshal cluster response"
+	}
+
+	if h.cache != nil {
+		if err := h.cache.Set(ctx, clusterCacheKey(clusterID), raw, clusterCacheTTL); err != nil {
+			h.log.Warnw("cluster cache set failed", "cluster_id", clusterID, "error", err)
+		}
+	}
+
+	return raw, http.StatusOK, ""
 }

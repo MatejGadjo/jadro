@@ -60,3 +60,12 @@ func DefaultFallbackTopic() Topic {
 func DefaultFallbackTopicName() string {
 	return string(DefaultFallbackTopic())
 }
+
+// AllTopics returns all canonical topic names in display order.
+func AllTopics() []string {
+	result := make([]string, len(canonicalTopicOrder))
+	for i, t := range canonicalTopicOrder {
+		result[i] = string(t)
+	}
+	return result
+}
