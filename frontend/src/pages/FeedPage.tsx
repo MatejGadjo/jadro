@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useParams } from '@tanstack/react-router'
 import { useQueries } from '@tanstack/react-query'
 import FeedEmpty from '@/components/feed/FeedEmpty'
@@ -38,8 +38,13 @@ export default function FeedPage() {
     setHasMore(newIds.length >= FEED_PAGE_SIZE)
   }, [data])
 
+  const idsForQueries = useMemo(() => {
+    const fromData = data?.clusters?.map((c) => c.id) ?? []
+    return [...new Set([...allClusterIds, ...fromData])]
+  }, [data, allClusterIds])
+
   const clusterQueries = useQueries({
-    queries: allClusterIds.map((clusterID) => ({
+    queries: idsForQueries.map((clusterID) => ({
       queryKey: queryKeys.cluster(clusterID),
       queryFn: () => fetchCluster(clusterID),
       staleTime: 5 * 60 * 1000,
