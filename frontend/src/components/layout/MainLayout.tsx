@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useLayoutEffect } from 'react'
 import type { ReactNode } from 'react'
 import { useRouterState } from '@tanstack/react-router'
 import Header from './Header'
@@ -11,7 +11,7 @@ interface MainLayoutProps {
 export default function MainLayout({ children }: MainLayoutProps) {
   const pathname = useRouterState({ select: (s) => s.location.pathname })
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     window.scrollTo({ top: 0, behavior: 'instant' })
   }, [pathname])
 
