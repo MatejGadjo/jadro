@@ -20,11 +20,23 @@ export default function FeedPage() {
   const topicName = topicLabelFromSlug(topicSlug)
   const topicValue = topicValueFromSlug(topicSlug)
 
+  const [prevTopicSlug, setPrevTopicSlug] = useState(topicSlug)
   const [page, setPage] = useState(0)
   const [allClusterIds, setAllClusterIds] = useState<number[]>([])
   const [hasMore, setHasMore] = useState(true)
 
-  const { data, isLoading, error } = useFeed(topicValue ?? '', page, Boolean(topicValue))
+  // Synchronous reset when topic changes — avoids key-based remount flash
+  const topicChanged = prevTopicSlug !== topicSlug
+  const activePage = topicChanged ? 0 : page
+  const activeClusterIds = topicChanged ? [] : allClusterIds
+  if (topicChanged) {
+    setPrevTopicSlug(topicSlug)
+    setPage(0)
+    setAllClusterIds([])
+    setHasMore(true)
+  }
+
+  const { data, isLoading, error } = useFeed(topicValue ?? '', activePage, Boolean(topicValue))
 
   // Accumulate cluster IDs as pages load
   useEffect(() => {
@@ -40,8 +52,8 @@ export default function FeedPage() {
 
   const idsForQueries = useMemo(() => {
     const fromData = data?.clusters?.map((c) => c.id) ?? []
-    return [...new Set([...allClusterIds, ...fromData])]
-  }, [data, allClusterIds])
+    return [...new Set([...activeClusterIds, ...fromData])]
+  }, [data, activeClusterIds])
 
   const clusterQueries = useQueries({
     queries: idsForQueries.map((clusterID) => ({
@@ -55,7 +67,7 @@ export default function FeedPage() {
 
   const hasClusterError = clusterQueries.length > 0 && clusterQueries.every((query) => query.isError)
   const isClustersLoading = clusterQueries.some((query) => query.isLoading)
-  const isLoadingMore = isLoading && page > 0
+  const isLoadingMore = isLoading && activePage > 0
 
   const topicClusters: MockCluster[] = []
   clusterQueries.forEach((query) => {
@@ -70,7 +82,7 @@ export default function FeedPage() {
     })
   })
 
-  const showSkeleton = (isLoading || isClustersLoading) && page === 0 && topicClusters.length === 0
+  const showSkeleton = (isLoading || isClustersLoading) && activePage === 0 && topicClusters.length === 0
 
   return (
     <div className="space-y-6">
