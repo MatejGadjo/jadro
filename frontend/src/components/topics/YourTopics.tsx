@@ -1,5 +1,5 @@
 import TopicCard from './TopicCard'
-import type { TopicSection } from '@/lib/topicMockData'
+import type { TopicSection } from '@/lib/feedTypes'
 
 interface YourTopicsProps {
   sections: TopicSection[]

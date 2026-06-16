@@ -1,9 +1,9 @@
 import StoryCluster from '@/components/feed/StoryCluster'
-import type { MockCluster } from '@/lib/mockData'
+import type { FeedCluster } from '@/lib/feedTypes'
 
 interface TopicFeedSectionProps {
   topicName: string
-  clusters: MockCluster[]
+  clusters: FeedCluster[]
 }
 
 export default function TopicFeedSection({ topicName, clusters }: TopicFeedSectionProps) {

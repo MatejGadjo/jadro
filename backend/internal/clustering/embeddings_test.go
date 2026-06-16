@@ -10,11 +10,11 @@ import (
 
 func TestNewEmbeddingGenerator(t *testing.T) {
 	log, _ := logger.NewLogger()
-	cfg := &config.Config{
-		ONNXRuntimeLibPath: "./models/onnxruntime-linux-x64-1.23.2/lib/libonnxruntime.so",
-		ONNXModelPath:      "./models/paraphrase-multilingual-MiniLM-L12-v2/model.onnx",
-		ONNXTokenizerPath:  "./models/paraphrase-multilingual-MiniLM-L12-v2/tokenizer.json",
-	}
+	cfg := &config.Config{ONNX: config.ONNXConfig{
+		RuntimeLibPath: "./models/onnxruntime-linux-x64-1.23.2/lib/libonnxruntime.so",
+		ModelPath:      "./models/paraphrase-multilingual-MiniLM-L12-v2/model.onnx",
+		TokenizerPath:  "./models/paraphrase-multilingual-MiniLM-L12-v2/tokenizer.json",
+	}}
 	gen, err := NewEmbeddingGenerator(cfg, log)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
@@ -27,11 +27,11 @@ func TestNewEmbeddingGenerator(t *testing.T) {
 
 func TestGenerateEmbedding(t *testing.T) {
 	log, _ := logger.NewLogger()
-	cfg := &config.Config{
-		ONNXRuntimeLibPath: "", // Empty to disable embeddings
-		ONNXModelPath:      "./models/paraphrase-multilingual-MiniLM-L12-v2/model.onnx",
-		ONNXTokenizerPath:  "./models/paraphrase-multilingual-MiniLM-L12-v2/tokenizer.json",
-	}
+	cfg := &config.Config{ONNX: config.ONNXConfig{
+		RuntimeLibPath: "", // Empty to disable embeddings
+		ModelPath:      "./models/paraphrase-multilingual-MiniLM-L12-v2/model.onnx",
+		TokenizerPath:  "./models/paraphrase-multilingual-MiniLM-L12-v2/tokenizer.json",
+	}}
 	gen, _ := NewEmbeddingGenerator(cfg, log)
 
 	ctx := context.Background()
@@ -48,11 +48,11 @@ func TestGenerateEmbedding(t *testing.T) {
 
 func TestGenerateEmbedding_EmptyText(t *testing.T) {
 	log, _ := logger.NewLogger()
-	cfg := &config.Config{
-		ONNXRuntimeLibPath: "", // Empty to disable embeddings
-		ONNXModelPath:      "./models/paraphrase-multilingual-MiniLM-L12-v2/model.onnx",
-		ONNXTokenizerPath:  "./models/paraphrase-multilingual-MiniLM-L12-v2/tokenizer.json",
-	}
+	cfg := &config.Config{ONNX: config.ONNXConfig{
+		RuntimeLibPath: "", // Empty to disable embeddings
+		ModelPath:      "./models/paraphrase-multilingual-MiniLM-L12-v2/model.onnx",
+		TokenizerPath:  "./models/paraphrase-multilingual-MiniLM-L12-v2/tokenizer.json",
+	}}
 	gen, _ := NewEmbeddingGenerator(cfg, log)
 
 	ctx := context.Background()

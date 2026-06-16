@@ -1,115 +1,18 @@
 import { Link } from '@tanstack/react-router'
-import { clearArticleImage } from '@/api/cluster'
 import { trackEvent } from '@/analytics'
-
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { ArrowRight, Layers } from 'lucide-react'
-import type { MockCluster, MockArticle } from '@/lib/mockData'
+import { SourceAvatar } from '@/components/feed/SourceAvatar'
+import { SourceBadge } from '@/components/feed/SourceBadge'
+import { FeaturedArticle } from '@/components/feed/FeaturedArticle'
+import type { FeedCluster, FeedArticle } from '@/lib/feedTypes'
 
 interface StoryClusterProps {
-  cluster: MockCluster
+  cluster: FeedCluster
   featured?: boolean
   embedded?: boolean
 }
 
-const SOURCE_COLORS = [
-  'bg-red-700', 'bg-blue-700', 'bg-emerald-700',
-  'bg-violet-700', 'bg-amber-700', 'bg-cyan-700', 'bg-rose-700',
-]
-
-function getSourceInitials(name: string) {
-  return name
-    .split(' ')
-    .map((word) => word[0])
-    .join('')
-    .substring(0, 2)
-    .toUpperCase()
-}
-
-function getSourceColor(name: string) {
-  return SOURCE_COLORS[name.length % SOURCE_COLORS.length]
-}
-
-function SourceBadge({ article }: { article: MockArticle }) {
-  return (
-    <div className="flex items-center gap-1.5 shrink-0">
-      <Avatar className="w-4 h-4 rounded-sm ring-1 ring-border/60 shrink-0">
-        <AvatarImage
-          src={article.source.logo_url}
-          alt={article.source.name}
-          className="rounded-sm bg-card object-contain p-0.5"
-        />
-        <AvatarFallback className={`rounded-sm text-[9px] font-bold ${getSourceColor(article.source.name)} text-white`}>
-          {getSourceInitials(article.source.name)}
-        </AvatarFallback>
-      </Avatar>
-      <span
-        className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide"
-        style={{ fontFamily: 'var(--font-mono)', fontSize: '10px' }}
-      >
-        {article.source.name}
-      </span>
-    </div>
-  )
-}
-
-function FeaturedArticle({ article }: { article: MockArticle }) {
-  return (
-    <a href={article.url} target="_blank" rel="noopener noreferrer" onClick={() => trackEvent('article_click', { source: article.source.name })} className="group flex flex-col h-full">
-      {article.imageUrl && (
-        <div className="relative w-full aspect-video overflow-hidden bg-muted mb-2 rounded-sm">
-          <img
-            src={article.imageUrl}
-            alt={article.title}
-            className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-500"
-            onError={(e) => { e.currentTarget.style.visibility = 'hidden'; clearArticleImage(article.id) }}
-          />
-        </div>
-      )}
-
-      {/* Source below image */}
-      <div className="flex items-center gap-1.5 mb-1.5">
-        <Avatar className="w-4 h-4 rounded-sm ring-1 ring-border/60 shrink-0">
-          <AvatarImage
-            src={article.source.logo_url}
-            alt={article.source.name}
-            className="rounded-sm bg-card object-contain p-0.5"
-          />
-          <AvatarFallback className={`rounded-sm text-[9px] font-bold ${getSourceColor(article.source.name)} text-white`}>
-            {getSourceInitials(article.source.name)}
-          </AvatarFallback>
-        </Avatar>
-        <span
-          className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide"
-          style={{ fontFamily: 'var(--font-mono)' }}
-        >
-          {article.source.name}
-        </span>
-      </div>
-
-      <h3
-        className="text-base font-bold text-foreground leading-snug group-hover:text-editorial transition-colors duration-150 flex-1"
-        style={{ fontFamily: 'var(--font-serif)' }}
-      >
-        {article.title}
-      </h3>
-
-      {article.publishedAt && (
-        <div className="mt-1.5">
-          <span
-            className="text-muted-foreground"
-            style={{ fontFamily: 'var(--font-mono)', fontSize: '10px' }}
-          >
-            {article.publishedAt}
-            {article.author && ` · ${article.author}`}
-          </span>
-        </div>
-      )}
-    </a>
-  )
-}
-
-function ArticleRow({ article }: { article: MockArticle }) {
+function ArticleRow({ article }: { article: FeedArticle }) {
   return (
     <a
       href={article.url}
@@ -118,16 +21,11 @@ function ArticleRow({ article }: { article: MockArticle }) {
       onClick={() => trackEvent('article_click', { source: article.source.name })}
       className="group flex items-start gap-3 py-2.5 border-t border-border/60 first:border-t-0 hover:bg-accent/40 -mx-3 px-3 transition-colors duration-100"
     >
-      <Avatar className="w-5 h-5 rounded-sm ring-1 ring-border/50 shrink-0 mt-0.5">
-        <AvatarImage
-          src={article.source.logo_url}
-          alt={article.source.name}
-          className="rounded-sm bg-card object-contain p-0.5"
-        />
-        <AvatarFallback className={`rounded-sm text-[9px] font-bold ${getSourceColor(article.source.name)} text-white`}>
-          {getSourceInitials(article.source.name)}
-        </AvatarFallback>
-      </Avatar>
+      <SourceAvatar
+        source={article.source}
+        className="w-5 h-5 rounded-sm ring-1 ring-border/50 shrink-0 mt-0.5"
+        fallbackClassName="text-[9px]"
+      />
       <div className="flex-1 min-w-0">
         <div className="flex items-baseline gap-2 mb-0.5">
           <span
@@ -156,7 +54,7 @@ function ArticleRow({ article }: { article: MockArticle }) {
   )
 }
 
-function FeaturedArticleRow({ article, fill = true }: { article: MockArticle; fill?: boolean }) {
+function FeaturedArticleRow({ article, fill = true }: { article: FeedArticle; fill?: boolean }) {
   return (
     <a
       href={article.url}
@@ -166,16 +64,11 @@ function FeaturedArticleRow({ article, fill = true }: { article: MockArticle; fi
       className={`group flex flex-col px-3 py-2 border-t border-border/60 first:border-t-0 hover:bg-accent/40 transition-colors duration-100 ${fill ? 'flex-1 min-h-0' : 'min-h-18'}`}
     >
       <div className="flex items-center gap-1.5 mb-1">
-        <Avatar className="w-3.5 h-3.5 rounded-sm ring-1 ring-border/50 shrink-0">
-          <AvatarImage
-            src={article.source.logo_url}
-            alt={article.source.name}
-            className="rounded-sm bg-card object-contain p-0.5"
-          />
-          <AvatarFallback className={`rounded-sm text-[8px] font-bold ${getSourceColor(article.source.name)} text-white`}>
-            {getSourceInitials(article.source.name)}
-          </AvatarFallback>
-        </Avatar>
+        <SourceAvatar
+          source={article.source}
+          className="w-3.5 h-3.5 rounded-sm ring-1 ring-border/50 shrink-0"
+          fallbackClassName="text-[8px]"
+        />
         <span
           className="text-muted-foreground font-semibold uppercase"
           style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', letterSpacing: '0.06em' }}
@@ -202,7 +95,7 @@ function FeaturedArticleRow({ article, fill = true }: { article: MockArticle; fi
   )
 }
 
-function CompanionArticle({ article }: { article: MockArticle }) {
+function CompanionArticle({ article }: { article: FeedArticle }) {
   return (
     <a
       href={article.url}
@@ -212,16 +105,11 @@ function CompanionArticle({ article }: { article: MockArticle }) {
       className="group flex flex-col pl-4 border-l border-border/60 hover:bg-accent/40 transition-colors duration-100 rounded-sm"
     >
       <div className="flex items-center gap-1.5 mb-2">
-        <Avatar className="w-3.5 h-3.5 rounded-sm ring-1 ring-border/50 shrink-0">
-          <AvatarImage
-            src={article.source.logo_url}
-            alt={article.source.name}
-            className="rounded-sm bg-card object-contain p-0.5"
-          />
-          <AvatarFallback className={`rounded-sm text-[8px] font-bold ${getSourceColor(article.source.name)} text-white`}>
-            {getSourceInitials(article.source.name)}
-          </AvatarFallback>
-        </Avatar>
+        <SourceAvatar
+          source={article.source}
+          className="w-3.5 h-3.5 rounded-sm ring-1 ring-border/50 shrink-0"
+          fallbackClassName="text-[8px]"
+        />
         <span
           className="text-muted-foreground font-semibold uppercase"
           style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', letterSpacing: '0.06em' }}
@@ -265,7 +153,7 @@ function SeeMoreLink({ clusterId }: { clusterId: number | string }) {
   )
 }
 
-function HorizontalArticleCard({ article }: { article: MockArticle }) {
+function HorizontalArticleCard({ article }: { article: FeedArticle }) {
   return (
     <a
       href={article.url}
@@ -275,16 +163,11 @@ function HorizontalArticleCard({ article }: { article: MockArticle }) {
       className="group flex flex-col w-52 shrink-0 bg-card border border-border rounded-sm p-3 hover:border-editorial/40 transition-colors duration-150"
     >
       <div className="flex items-center gap-1.5 mb-2">
-        <Avatar className="w-4 h-4 rounded-sm shrink-0">
-          <AvatarImage
-            src={article.source.logo_url}
-            alt={article.source.name}
-            className="rounded-sm bg-card object-contain p-0.5"
-          />
-          <AvatarFallback className={`rounded-sm text-[8px] font-bold ${getSourceColor(article.source.name)} text-white`}>
-            {getSourceInitials(article.source.name)}
-          </AvatarFallback>
-        </Avatar>
+        <SourceAvatar
+          source={article.source}
+          className="w-4 h-4 rounded-sm shrink-0"
+          fallbackClassName="text-[8px]"
+        />
         <span
           className="text-foreground font-bold uppercase truncate"
           style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', letterSpacing: '0.06em' }}
@@ -310,7 +193,7 @@ function HorizontalArticleCard({ article }: { article: MockArticle }) {
   )
 }
 
-function HorizontalArticleScroll({ articles }: { articles: MockArticle[] }) {
+function HorizontalArticleScroll({ articles }: { articles: FeedArticle[] }) {
   return (
     <div className="relative -mx-4">
       <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-12 z-10 bg-linear-to-l from-card to-transparent" />

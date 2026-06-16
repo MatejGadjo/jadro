@@ -1,7 +1,7 @@
 import { formatDistanceToNowStrict, parseISO } from 'date-fns'
 import { mk } from 'date-fns/locale'
 import type { ClusterResponse } from '@/api/types'
-import type { MockArticle } from '@/lib/mockData'
+import type { FeedArticle } from '@/lib/feedTypes'
 
 
 export function toRelativeTime(publishedAt: string | null | undefined, fetchedAt: string): string {
@@ -14,8 +14,8 @@ export function toRelativeTime(publishedAt: string | null | undefined, fetchedAt
 }
 
 export function prioritizeClusterArticles(
-  articles: MockArticle[],
-): MockArticle[] {
+  articles: FeedArticle[],
+): FeedArticle[] {
   if (articles.length === 0) {
     return articles
   }
@@ -35,7 +35,7 @@ export function prioritizeClusterArticles(
 export function mapClusterResponseArticles(
   articles: ClusterResponse['articles'],
   limit?: number,
-): MockArticle[] {
+): FeedArticle[] {
   const mappedArticles = articles.map((article) => ({
     id: article.id,
     source: {

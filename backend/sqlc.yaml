@@ -1,0 +1,22 @@
+version: "2"
+sql:
+  - engine: "postgresql"
+    queries: "internal/storage/sqlc/queries/"
+    schema: "internal/storage/migrations/"
+    gen:
+      go:
+        package: "sqlc"
+        out: "internal/storage/sqlc/"
+        sql_package: "pgx/v5"
+        overrides:
+          - db_type: "vector"
+            nullable: false
+            go_type:
+              import: "github.com/pgvector/pgvector-go"
+              type: "Vector"
+          - db_type: "vector"
+            nullable: true
+            go_type:
+              import: "github.com/pgvector/pgvector-go"
+              type: "Vector"
+              pointer: true

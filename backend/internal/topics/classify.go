@@ -9,18 +9,17 @@ import (
 	"net/url"
 	"regexp"
 	"sort"
-	"strconv"
 	"strings"
 )
 
 const (
 	rssCandidateBoostPerHit = 2.0
 
+	forceConfidence       = 1.0
 	rssCategoryConfidence = 0.90
 	urlRuleConfidence     = 0.88
 	urlExactConfidence    = 0.92
-	keywordHighConfidence = 0.85
-	keywordMidConfidence  = 0.75
+	keywordConfidence     = 0.78
 	fallbackConfidence    = 0.50
 )
 
@@ -28,7 +27,7 @@ const (
 type CategoryMethod string
 
 const (
-	CategoryMethodFeedMap     CategoryMethod = "feed_map"
+	CategoryMethodForce       CategoryMethod = "force"
 	CategoryMethodRSSCategory CategoryMethod = "rss_category"
 	CategoryMethodURLRule     CategoryMethod = "url_rule"
 	CategoryMethodKeywordRule CategoryMethod = "keyword_rule"
@@ -37,7 +36,6 @@ const (
 
 // ClassificationInput holds all deterministic signals used for categorization.
 type ClassificationInput struct {
-	FeedID        *int64
 	FeedURL       string
 	Domain        string
 	URL           string
@@ -52,11 +50,6 @@ type ClassificationResult struct {
 	Confidence float64
 	Method     CategoryMethod
 	Signals    map[string]any
-}
-
-type feedMapConfig struct {
-	FeedIDs  map[string]string `json:"feed_ids"`
-	FeedURLs map[string]string `json:"feed_urls"`
 }
 
 type urlRuleConfig struct {
@@ -88,15 +81,22 @@ type compiledKeyword struct {
 	alternatives []string
 }
 
-type Classifier struct {
-	feedIDMap  map[int64]Topic
-	feedURLMap map[string]Topic
-	rssTagMap  map[string]Topic
-	urlRules   []compiledURLRule
-	keywords   map[Topic][]compiledKeyword
+// forcedFeedRule forces a category for feeds whose URL starts with key
+// (normalized host/path prefix, e.g. "kajgana.com/sport").
+type forcedFeedRule struct {
+	key      string
+	category Topic
 }
 
-//go:embed config/category_feed_map.json config/category_rss_tag_map.json config/category_url_rules.json config/category_keywords.json
+type Classifier struct {
+	forcedDomains map[string]Topic
+	forcedFeeds   []forcedFeedRule
+	rssTagMap     map[string]Topic
+	urlRules      []compiledURLRule
+	keywords      map[Topic][]compiledKeyword
+}
+
+//go:embed config/category_rss_tag_map.json config/category_url_rules.json config/category_keywords.json config/source_force_category.json
 var classifierConfigFS embed.FS
 
 var (
@@ -122,11 +122,6 @@ func mustLoadDefaultClassifier() *Classifier {
 }
 
 func loadClassifierFromFS(configFS fs.FS) (*Classifier, error) {
-	var feedCfg feedMapConfig
-	if err := loadJSON(configFS, "config/category_feed_map.json", &feedCfg); err != nil {
-		return nil, err
-	}
-
 	rssTagMap := make(map[string]string)
 	if err := loadJSON(configFS, "config/category_rss_tag_map.json", &rssTagMap); err != nil {
 		return nil, err
@@ -142,7 +137,12 @@ func loadClassifierFromFS(configFS fs.FS) (*Classifier, error) {
 		return nil, err
 	}
 
-	return newClassifier(feedCfg, rssTagMap, urlRules, keywordMap)
+	forceMap := make(map[string]string)
+	if err := loadJSON(configFS, "config/source_force_category.json", &forceMap); err != nil {
+		return nil, err
+	}
+
+	return newClassifier(forceMap, rssTagMap, urlRules, keywordMap)
 }
 
 func loadJSON(configFS fs.FS, path string, out any) error {
@@ -157,42 +157,40 @@ func loadJSON(configFS fs.FS, path string, out any) error {
 }
 
 func newClassifier(
-	feedCfg feedMapConfig,
+	forceMap map[string]string,
 	rssTagMap map[string]string,
 	urlRuleCfg []urlRuleConfig,
 	keywordMap map[string][]keywordConfig,
 ) (*Classifier, error) {
 	classifier := &Classifier{
-		feedIDMap:  make(map[int64]Topic),
-		feedURLMap: make(map[string]Topic),
-		rssTagMap:  make(map[string]Topic),
-		urlRules:   make([]compiledURLRule, 0, len(urlRuleCfg)),
-		keywords:   make(map[Topic][]compiledKeyword),
+		forcedDomains: make(map[string]Topic),
+		rssTagMap:     make(map[string]Topic),
+		urlRules:      make([]compiledURLRule, 0, len(urlRuleCfg)),
+		keywords:      make(map[Topic][]compiledKeyword),
 	}
 
-	for rawFeedID, rawCategory := range feedCfg.FeedIDs {
-		feedID, err := strconv.ParseInt(strings.TrimSpace(rawFeedID), 10, 64)
-		if err != nil {
-			return nil, fmt.Errorf("invalid feed id %q: %w", rawFeedID, err)
-		}
+	for rawKey, rawCategory := range forceMap {
 		category, ok := parseTopic(rawCategory)
 		if !ok {
-			return nil, fmt.Errorf("invalid category %q for feed id %q", rawCategory, rawFeedID)
+			return nil, fmt.Errorf("invalid forced category %q for source %q", rawCategory, rawKey)
 		}
-		classifier.feedIDMap[feedID] = category
-	}
-
-	for rawFeedURL, rawCategory := range feedCfg.FeedURLs {
-		feedURL := normalizeFeedURL(rawFeedURL)
-		if feedURL == "" {
+		if strings.Contains(strings.Trim(rawKey, "/"), "/") {
+			key := normalizeSourceKey(rawKey)
+			if key == "" {
+				return nil, fmt.Errorf("invalid forced source key %q", rawKey)
+			}
+			classifier.forcedFeeds = append(classifier.forcedFeeds, forcedFeedRule{key: key, category: category})
 			continue
 		}
-		category, ok := parseTopic(rawCategory)
-		if !ok {
-			return nil, fmt.Errorf("invalid category %q for feed url %q", rawCategory, rawFeedURL)
+		domain := normalizeDomain(rawKey)
+		if domain == "" {
+			return nil, fmt.Errorf("invalid forced source domain %q", rawKey)
 		}
-		classifier.feedURLMap[feedURL] = category
+		classifier.forcedDomains[domain] = category
 	}
+	sort.Slice(classifier.forcedFeeds, func(i, j int) bool {
+		return classifier.forcedFeeds[i].key < classifier.forcedFeeds[j].key
+	})
 
 	for rawTag, rawCategory := range rssTagMap {
 		normalizedTag := normalizeToken(rawTag)
@@ -336,24 +334,6 @@ func parseTopic(raw string) (Topic, bool) {
 	}
 }
 
-func normalizeFeedURL(raw string) string {
-	trimmed := strings.TrimSpace(strings.ToLower(raw))
-	if trimmed == "" {
-		return ""
-	}
-	parsed, err := url.Parse(trimmed)
-	if err != nil || parsed.Host == "" {
-		return strings.TrimSuffix(trimmed, "/")
-	}
-
-	host := normalizeDomain(parsed.Host)
-	path := strings.TrimSuffix(strings.ToLower(parsed.Path), "/")
-	if path == "" {
-		path = "/"
-	}
-	return parsed.Scheme + "://" + host + path
-}
-
 func normalizeDomain(raw string) string {
 	trimmed := strings.TrimSpace(strings.ToLower(raw))
 	if trimmed == "" {
@@ -377,6 +357,32 @@ func normalizeDomain(raw string) string {
 	}
 
 	return strings.TrimPrefix(trimmed, "www.")
+}
+
+// normalizeSourceKey normalizes a URL (or bare host/path) to "host/path"
+// form — lowercase, no scheme, no www, no trailing slash — so forced-feed
+// prefixes like "kajgana.com/sport" can match feed URLs.
+func normalizeSourceKey(raw string) string {
+	trimmed := strings.TrimSpace(strings.ToLower(raw))
+	if trimmed == "" {
+		return ""
+	}
+
+	if !strings.Contains(trimmed, "://") {
+		trimmed = "https://" + trimmed
+	}
+	parsed, err := url.Parse(trimmed)
+	if err != nil || parsed.Host == "" {
+		return ""
+	}
+
+	host := parsed.Host
+	if h, _, err := net.SplitHostPort(host); err == nil {
+		host = h
+	}
+	host = strings.TrimPrefix(host, "www.")
+
+	return host + strings.TrimSuffix(parsed.Path, "/")
 }
 
 func normalizeToken(raw string) string {
@@ -438,20 +444,18 @@ func initScoreMap() map[Topic]float64 {
 	return scores
 }
 
-type rankedScore struct {
-	Topic Topic
-	Score float64
-}
-
-func rankScores(scores map[Topic]float64) []rankedScore {
-	ranked := make([]rankedScore, 0, len(canonicalTopicOrder))
-	for _, topic := range canonicalTopicOrder {
-		ranked = append(ranked, rankedScore{Topic: topic, Score: scores[topic]})
+// maxScore returns the highest-scoring topic; ties resolve to the earlier
+// topic in canonicalTopicOrder so results are deterministic.
+func maxScore(scores map[Topic]float64) (Topic, float64) {
+	top := canonicalTopicOrder[0]
+	topScore := scores[top]
+	for _, topic := range canonicalTopicOrder[1:] {
+		if scores[topic] > topScore {
+			top = topic
+			topScore = scores[topic]
+		}
 	}
-	sort.SliceStable(ranked, func(i, j int) bool {
-		return ranked[i].Score > ranked[j].Score
-	})
-	return ranked
+	return top, topScore
 }
 
 func scoreSignals(scores map[Topic]float64) map[string]float64 {
@@ -504,13 +508,20 @@ func isMacedonianDomain(domain string) bool {
 	return normalized == "mk" || strings.HasSuffix(normalized, ".mk")
 }
 
-func hasAnyTerm(variants []string, terms []string) bool {
-	for _, term := range terms {
-		if containsTerm(variants, term) {
-			return true
+// matchForcedSource checks single-topic sources: feed-URL prefixes first
+// (multi-feed domains like kajgana.com), then plain domains.
+func (c *Classifier) matchForcedSource(feedURL, domain string) (Topic, string, bool) {
+	if feedKey := normalizeSourceKey(feedURL); feedKey != "" {
+		for _, rule := range c.forcedFeeds {
+			if feedKey == rule.key || strings.HasPrefix(feedKey, rule.key+"/") {
+				return rule.category, rule.key, true
+			}
 		}
 	}
-	return false
+	if category, ok := c.forcedDomains[domain]; ok {
+		return category, domain, true
+	}
+	return "", "", false
 }
 
 func (c *Classifier) matchURLRule(rawURL, domain string) (ClassificationResult, bool) {
@@ -519,7 +530,13 @@ func (c *Classifier) matchURLRule(rawURL, domain string) (ClassificationResult, 
 		return ClassificationResult{}, false
 	}
 
-	path := strings.ToLower(parsedURL.Path)
+	path := parsedURL.Path
+	// Cyrillic URL segments arrive percent-encoded (e.g. /%D1%81%D0%BF%D0%BE%D1%80%D1%82/);
+	// decode so Cyrillic patterns can match.
+	if decoded, err := url.PathUnescape(path); err == nil {
+		path = decoded
+	}
+	path = strings.ToLower(path)
 	if path == "" {
 		path = "/"
 	}
@@ -576,33 +593,11 @@ func singleMatchedTopic(matches map[Topic]int) (Topic, bool) {
 	return matchedTopic, count == 1
 }
 
-func applyOverride(scores map[Topic]float64, variants []string) (string, Topic, float64, bool) {
-	if scores[TopicChronicle] >= 8 {
-		return "hronika_strong", TopicChronicle, 0.80, true
-	}
-	if scores[TopicSport] >= 8 {
-		return "sport_strong", TopicSport, 0.80, true
-	}
-	if scores[TopicSkopje] >= 6 && scores[TopicChronicle] < 8 && scores[TopicSport] < 8 {
-		return "skopje_strong", TopicSkopje, 0.78, true
-	}
-	if scores[TopicRegion] >= 6 && scores[TopicWorld] < scores[TopicRegion]+2 {
-		return "region_over_world", TopicRegion, 0.76, true
-	}
-	if hasAnyTerm(variants, []string{"театар", "музеј", "изложба", "книга", "поезија"}) {
-		return "kultura_over_scena", TopicCulture, 0.74, true
-	}
-	if hasAnyTerm(variants, []string{"ријалити", "инфлуенсер", "ѕвезда", "скандал"}) {
-		return "scena_over_kultura", TopicScene, 0.74, true
-	}
-	return "", "", 0, false
-}
-
-// ClassifyArticle runs a deterministic, ML-free 6-step pipeline:
-// 1) feed map, 2) RSS category map, 3) URL rules, 4) keyword scoring,
-// 5) deterministic overrides, 6) safe fallback.
-// Confidence semantics: >=0.90 very strong structural signals; 0.75-0.85 keyword-driven;
-// 0.50 fallback/default signal only.
+// ClassifyArticle runs a deterministic, ML-free pipeline:
+// 0) forced single-topic sources, 1) RSS category map, 2) URL rules,
+// 3) keyword scoring (max-score winner), 4) safe fallback.
+// Confidence semantics: 1.0 forced source; >=0.88 strong structural signals;
+// 0.78 keyword-driven; 0.50 fallback/default signal only.
 func ClassifyArticle(input ClassificationInput) ClassificationResult {
 	return defaultClassifier.ClassifyArticle(input)
 }
@@ -615,16 +610,9 @@ func (c *Classifier) ClassifyArticle(input ClassificationInput) ClassificationRe
 		signals["domain"] = domain
 	}
 
-	if input.FeedID != nil {
-		if category, ok := c.feedIDMap[*input.FeedID]; ok {
-			signals["feedMatch"] = map[string]any{"feedId": *input.FeedID}
-			return classificationResult(category, 0.98, CategoryMethodFeedMap, signals)
-		}
-	}
-
-	if category, ok := c.feedURLMap[normalizeFeedURL(input.FeedURL)]; ok {
-		signals["feedMatch"] = map[string]any{"feedUrl": normalizeFeedURL(input.FeedURL)}
-		return classificationResult(category, 0.98, CategoryMethodFeedMap, signals)
+	if category, matchedKey, ok := c.matchForcedSource(input.FeedURL, domain); ok {
+		signals["forcedSource"] = matchedKey
+		return classificationResult(category, forceConfidence, CategoryMethodForce, signals)
 	}
 
 	scores := initScoreMap()
@@ -699,26 +687,13 @@ func (c *Classifier) ClassifyArticle(input ClassificationInput) ClassificationRe
 		signals["keywordMatches"] = keywordMatches
 	}
 
-	ranked := rankScores(scores)
-	top := ranked[0]
-	second := ranked[1]
-	gap := top.Score - second.Score
+	topTopic, topScore := maxScore(scores)
 
 	signals["scores"] = scoreSignals(scores)
-	signals["topScore"] = map[string]any{"category": string(top.Topic), "score": top.Score}
-	signals["secondScore"] = map[string]any{"category": string(second.Topic), "score": second.Score}
-	signals["scoreGap"] = gap
+	signals["topScore"] = map[string]any{"category": string(topTopic), "score": topScore}
 
-	if top.Score >= 10 && gap >= 4 {
-		return classificationResult(top.Topic, keywordHighConfidence, CategoryMethodKeywordRule, signals)
-	}
-	if top.Score >= 7 && gap >= 3 {
-		return classificationResult(top.Topic, keywordMidConfidence, CategoryMethodKeywordRule, signals)
-	}
-
-	if overrideName, overrideCategory, overrideConfidence, ok := applyOverride(scores, variants); ok {
-		signals["overrideApplied"] = overrideName
-		return classificationResult(overrideCategory, overrideConfidence, CategoryMethodKeywordRule, signals)
+	if topScore > 0 {
+		return classificationResult(topTopic, keywordConfidence, CategoryMethodKeywordRule, signals)
 	}
 
 	fallbackCategory := TopicWorld

@@ -22,17 +22,14 @@ export default function MainLayout({ children }: MainLayoutProps) {
 
       {/* Main content area */}
       <div className="container mx-auto px-3 pb-6 pt-24 flex-1">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          {/* Main content - full width on mobile, center column on desktop */}
-          <main className="lg:col-span-12 lg:max-w-6xl lg:mx-auto">
-            {children}
-          </main>
-
-          {/* Ad Sidebar - hidden on mobile, visible on desktop (right) */}
-          {/* <aside className="hidden lg:block lg:col-span-2">
-            <AdSidebar />
-          </aside> */}
-        </div>
+        {/* Centered content column. NOTE: do not make <main> a grid/flex item
+            with an auto inline-margin — that disables `justify-self: stretch`
+            and collapses it to its content's max-content width (skeletons go
+            narrow on desktop). When the ad rail returns, wrap in a grid and
+            keep `w-full` on <main> so stretch is preserved. */}
+        <main className="mx-auto w-full max-w-6xl">
+          {children}
+        </main>
       </div>
 
       <Footer />

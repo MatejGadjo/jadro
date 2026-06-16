@@ -1,16 +1,9 @@
 import { useLatestArticles } from '@/hooks/useLatestArticles'
+import { toRelativeTime } from '@/lib/clusterArticles'
+import { LATEST_ARTICLES_LIMIT } from '@/lib/constants'
 import type { LatestArticle } from '@/api/types'
 
 const mono: React.CSSProperties = { fontFamily: 'var(--font-mono)' }
-
-function mkTimeAgo(dateStr: string): string {
-  const mins = Math.floor((Date.now() - new Date(dateStr).getTime()) / 60_000)
-  if (mins < 1)  return 'пред момент'
-  if (mins === 1) return 'пред 1 мин'
-  if (mins < 60)  return `пред ${mins} мин`
-  const hrs = Math.floor(mins / 60)
-  return hrs === 1 ? 'пред 1 час' : `пред ${hrs} часа`
-}
 
 function SectionHeader({ label }: { label: string }) {
   return (
@@ -27,8 +20,6 @@ function SectionHeader({ label }: { label: string }) {
 }
 
 function ArticleRow({ article }: { article: LatestArticle }) {
-  const rawTime = article.published_at ?? article.fetched_at
-
   return (
     <a
       href={article.url}
@@ -64,7 +55,7 @@ function ArticleRow({ article }: { article: LatestArticle }) {
           className="text-muted-foreground shrink-0"
           style={{ ...mono, fontSize: '9px' }}
         >
-          {mkTimeAgo(rawTime)}
+          {toRelativeTime(article.published_at, article.fetched_at)}
         </span>
       </div>
     </a>
@@ -89,7 +80,7 @@ function SkeletonRow() {
 }
 
 export default function HomeSidebar() {
-  const { data, isLoading, isError } = useLatestArticles(5)
+  const { data, isLoading, isError } = useLatestArticles(LATEST_ARTICLES_LIMIT)
 
   return (
     <aside className="hidden lg:flex flex-col self-start">
@@ -101,7 +92,7 @@ export default function HomeSidebar() {
 
           {isLoading && (
             <div>
-              {Array.from({ length: 5 }, (_, i) => (
+              {Array.from({ length: LATEST_ARTICLES_LIMIT }, (_, i) => (
                 <SkeletonRow key={i} />
               ))}
             </div>
