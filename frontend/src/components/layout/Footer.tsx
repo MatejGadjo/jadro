@@ -78,7 +78,7 @@ export default function Footer() {
       </div>
 
       {/* ── Mobile: dateline strip — everything on one scrollable line ── */}
-      <div className="sm:hidden overflow-x-auto scrollbar-none">
+      <div className="sm:hidden overflow-x-auto scrollbar-hide">
         <div className="flex items-center gap-0 px-4 py-3 whitespace-nowrap w-max min-w-full justify-center">
           <Link to="/" className="group flex items-baseline gap-0.5 shrink-0 pr-3">
             <span

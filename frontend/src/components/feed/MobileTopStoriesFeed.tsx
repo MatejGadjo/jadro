@@ -1,15 +1,12 @@
 import { useState, useEffect } from 'react'
-import { useQueries } from '@tanstack/react-query'
 import { useFeed } from '@/hooks/useFeed'
-import { fetchCluster } from '@/api/cluster'
-import { queryKeys } from '@/api/queryKeys'
 import { mapClusterResponseArticles } from '@/lib/clusterArticles'
 import StoryCluster from '@/components/feed/StoryCluster'
 import ClusterCardSkeleton from '@/components/feed/ClusterCardSkeleton'
 import { Loader2, ArrowDown } from 'lucide-react'
-import type { MockCluster } from '@/lib/mockData'
-
-const PER_PAGE = 10
+import type { FeedCluster } from '@/lib/feedTypes'
+import type { ClusterDetail } from '@/api/types'
+import { FEED_PAGE_SIZE } from '@/lib/constants'
 
 interface Props {
   featuredCount: number
@@ -18,56 +15,44 @@ interface Props {
 
 export default function MobileTopStoriesFeed({ featuredCount, featuredClusterIds }: Props) {
   const [page, setPage] = useState(0)
-  const [allClusterIds, setAllClusterIds] = useState<number[]>([])
+  const [accumulated, setAccumulated] = useState<ClusterDetail[]>([])
   const [hasMore, setHasMore] = useState(true)
-  const [visibleSlice, setVisibleSlice] = useState(() => Math.max(1, PER_PAGE - featuredCount))
+  const [visibleSlice, setVisibleSlice] = useState(() => Math.max(1, FEED_PAGE_SIZE - featuredCount))
 
   const { data, isLoading } = useFeed('', page)
 
   useEffect(() => {
-    if (!data?.clusters) return
-    const newIds = data.clusters
-      .map((c) => c.id)
-      .filter((id) => !featuredClusterIds.has(id))
-    setAllClusterIds((prev) => {
-      const existing = new Set(prev)
-      const fresh = newIds.filter((id) => !existing.has(id))
-      return fresh.length > 0 ? [...prev, ...fresh] : prev
+    const details = data?.cluster_details
+    if (!details) return
+    const fresh = details.filter((d) => !featuredClusterIds.has(d.cluster.id))
+    setAccumulated((prev) => {
+      const existing = new Set(prev.map((d) => d.cluster.id))
+      const unseen = fresh.filter((d) => !existing.has(d.cluster.id))
+      return unseen.length > 0 ? [...prev, ...unseen] : prev
     })
     // Use raw count (before dedup) to reflect actual backend pagination state
-    setHasMore(data.clusters.length >= PER_PAGE)
+    setHasMore(details.length >= FEED_PAGE_SIZE)
   }, [data, featuredClusterIds])
 
-  const clusterQueries = useQueries({
-    queries: allClusterIds.map((id) => ({
-      queryKey: queryKeys.cluster(id),
-      queryFn: () => fetchCluster(id),
-      staleTime: 5 * 60 * 1000,
-      retry: 2,
-    })),
-  })
-
-  const resolvedClusters: MockCluster[] = clusterQueries
-    .filter((q) => Boolean(q.data))
-    .map((q) => ({
-      id: q.data!.cluster.id,
-      headline: q.data!.cluster.headline,
-      displayTitle: q.data!.cluster.display_title,
-      topic: q.data!.cluster.topic,
-      articles: mapClusterResponseArticles(q.data!.articles),
-    }))
+  const resolvedClusters: FeedCluster[] = accumulated.map((d) => ({
+    id: d.cluster.id,
+    headline: d.cluster.headline,
+    displayTitle: d.cluster.display_title,
+    topic: d.cluster.topic,
+    articles: mapClusterResponseArticles(d.articles),
+  }))
 
   const visibleClusters = resolvedClusters.slice(0, visibleSlice)
   const isFetchingMore = isLoading && page > 0
-  const isInitialLoading = isLoading && allClusterIds.length === 0
+  const isInitialLoading = isLoading && accumulated.length === 0
   const canShowMore = visibleSlice < resolvedClusters.length || (hasMore && resolvedClusters.length <= visibleSlice)
 
   function handleLoadMore() {
     if (visibleSlice < resolvedClusters.length) {
-      setVisibleSlice((v) => v + PER_PAGE)
+      setVisibleSlice((v) => v + FEED_PAGE_SIZE)
     } else {
       setPage((p) => p + 1)
-      setVisibleSlice((v) => v + PER_PAGE)
+      setVisibleSlice((v) => v + FEED_PAGE_SIZE)
     }
   }
 

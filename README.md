@@ -62,7 +62,6 @@ App is available at `http://localhost` (nginx). Backend health: `http://localhos
 | `LOG_LEVEL` | No | `info` | `debug` / `info` / `warn` / `error` |
 | `REDIS_URL` | No | — | e.g. `redis://localhost:6379`; empty disables feed caching |
 | `ALLOWED_ORIGINS` | No | `*` | Comma-separated CORS origins, e.g. `https://jadro.mk,https://www.jadro.mk` |
-| `INTERNAL_API_TOKEN` | Production | — | Bearer token for `/internal/*` routes; **required** when `APP_ENV=production` |
 | `INGEST_CRON` | No | `*/15 * * * *` | Cron expression for RSS ingestion |
 | `CLEANUP_CRON` | No | `0 3 * * *` | Cron expression for old-article cleanup |
 | `CLEANUP_RETENTION_DAYS` | No | `3` | Articles older than this are deleted |
@@ -121,20 +120,13 @@ All routes are under `/api`. No versioning prefix.
 | `GET` | `/api/clusters/:id` | None | Cluster detail with all articles |
 | `GET` | `/api/articles/latest` | None | Latest articles |
 | `PATCH` | `/api/articles/:id/clear-image` | None | Remove broken image URL |
-| `POST` | `/internal/ingest` | Bearer token | Manually trigger an ingest+rescore cycle |
 
 **Rate limits** (Redis-backed, fails open):
 - `/api/feed` — 30 req/min per IP
 - `/api/clusters/:id`, `/api/articles/latest` — 60 req/min per IP
 - `/api/articles/:id/clear-image` — 20 req/min per IP
 
-**Manual ingest trigger:**
-```bash
-curl -X POST https://jadro.mk/internal/ingest \
-  -H "Authorization: Bearer $INTERNAL_API_TOKEN"
-# 202 Accepted — triggered
-# 409 Conflict  — already in progress
-```
+Ingestion and cleanup run on an in-process cron (`INGEST_CRON` / `CLEANUP_CRON`); there are no manual trigger endpoints.
 
 ---
 

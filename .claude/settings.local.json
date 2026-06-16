@@ -1,8 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "Bash(migrate -database \"postgres://postgres:1919@localhost:5432/news?sslmode=disable\" -path /home/gadjo/Projects/NewsAggregator/backend/migrations up)",
-      "Bash(go build *)"
-    ]
-  }
-}

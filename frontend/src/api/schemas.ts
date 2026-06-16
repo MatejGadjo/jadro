@@ -60,17 +60,22 @@ export const HomepageClusterSectionSchema = z.object({
   sources: z.array(HomepageSourceGroupSchema),
 });
 
+export const ClusterDetailSchema = z.object({
+  cluster: ClusterSchema,
+  articles: z.array(ArticleSchema),
+});
+
 export const FeedResponseSchema = z.object({
   feed_version: z.number().optional().default(0),
   clusters: z.array(ClusterSchema),
+  cluster_details: z.array(ClusterDetailSchema).optional().default([]),
   featured_clusters: z.array(HomepageClusterSectionSchema).optional().default([]),
   top_clusters_by_category: z.array(HomepageClusterSectionSchema).optional().default([]),
 });
 
-export const ClusterResponseSchema = z.object({
-  cluster: ClusterSchema,
-  articles: z.array(ArticleSchema),
-});
+// ClusterResponse (from /api/clusters/:id) is structurally identical to a feed
+// cluster detail entry.
+export const ClusterResponseSchema = ClusterDetailSchema;
 
 export const LatestArticleSchema = z.object({
   id: z.number(),

@@ -1,18 +1,15 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect } from 'react'
 import { useParams } from '@tanstack/react-router'
-import { useQueries } from '@tanstack/react-query'
 import FeedEmpty from '@/components/feed/FeedEmpty'
 import ClusterCardSkeleton, { TopicSectionHeaderSkeleton } from '@/components/feed/ClusterCardSkeleton'
 import TopicFeedSection from '@/components/topics/TopicFeedSection'
-import { fetchCluster } from '@/api/cluster'
-import { queryKeys } from '@/api/queryKeys'
-import type { MockCluster } from '@/lib/mockData'
+import type { FeedCluster } from '@/lib/feedTypes'
+import type { ClusterDetail } from '@/api/types'
 import { useFeed } from '@/hooks/useFeed'
 import { mapClusterResponseArticles } from '@/lib/clusterArticles'
 import { topicLabelFromSlug, topicValueFromSlug } from '@/lib/topics'
+import { FEED_PAGE_SIZE } from '@/lib/constants'
 import { Loader2, ArrowDown } from 'lucide-react'
-
-const FEED_PAGE_SIZE = 10
 
 export default function FeedPage() {
   const { topic } = useParams({ strict: false })
@@ -22,74 +19,53 @@ export default function FeedPage() {
 
   const [prevTopicSlug, setPrevTopicSlug] = useState(topicSlug)
   const [page, setPage] = useState(0)
-  const [allClusterIds, setAllClusterIds] = useState<number[]>([])
+  const [accumulated, setAccumulated] = useState<ClusterDetail[]>([])
   const [hasMore, setHasMore] = useState(true)
 
   // Synchronous reset when topic changes — avoids key-based remount flash
   const topicChanged = prevTopicSlug !== topicSlug
   const activePage = topicChanged ? 0 : page
-  const activeClusterIds = topicChanged ? [] : allClusterIds
+  const activeDetails = topicChanged ? [] : accumulated
   if (topicChanged) {
     setPrevTopicSlug(topicSlug)
     setPage(0)
-    setAllClusterIds([])
+    setAccumulated([])
     setHasMore(true)
   }
 
   const { data, isLoading, error } = useFeed(topicValue ?? '', activePage, Boolean(topicValue))
 
-  // Accumulate cluster IDs as pages load
+  // Accumulate cluster details (with embedded articles) as pages load
   useEffect(() => {
-    if (!data?.clusters) return
-    const newIds = data.clusters.map((c) => c.id)
-    setAllClusterIds((prev) => {
-      const existing = new Set(prev)
-      const fresh = newIds.filter((id) => !existing.has(id))
+    const details = data?.cluster_details
+    if (!details) return
+    setAccumulated((prev) => {
+      const existing = new Set(prev.map((d) => d.cluster.id))
+      const fresh = details.filter((d) => !existing.has(d.cluster.id))
       return fresh.length > 0 ? [...prev, ...fresh] : prev
     })
-    setHasMore(newIds.length >= FEED_PAGE_SIZE)
+    setHasMore(details.length >= FEED_PAGE_SIZE)
   }, [data])
 
-  const idsForQueries = useMemo(() => {
-    const fromData = data?.clusters?.map((c) => c.id) ?? []
-    return [...new Set([...activeClusterIds, ...fromData])]
-  }, [data, activeClusterIds])
-
-  const clusterQueries = useQueries({
-    queries: idsForQueries.map((clusterID) => ({
-      queryKey: queryKeys.cluster(clusterID),
-      queryFn: () => fetchCluster(clusterID),
-      staleTime: 5 * 60 * 1000,
-      retry: 2,
-      enabled: Boolean(topicValue),
-    })),
-  })
-
-  const hasClusterError = clusterQueries.length > 0 && clusterQueries.every((query) => query.isError)
-  const isClustersLoading = clusterQueries.some((query) => query.isLoading)
   const isLoadingMore = isLoading && activePage > 0
 
-  const topicClusters: MockCluster[] = []
-  clusterQueries.forEach((query) => {
-    if (!query.data) return
-    const mappedArticles: MockCluster['articles'] = mapClusterResponseArticles(query.data.articles)
-    topicClusters.push({
-      id: query.data.cluster.id,
-      headline: query.data.cluster.headline,
-      displayTitle: query.data.cluster.display_title,
-      topic: query.data.cluster.topic,
-      articles: mappedArticles,
-    })
-  })
+  const topicClusters: FeedCluster[] = activeDetails.map((detail) => ({
+    id: detail.cluster.id,
+    headline: detail.cluster.headline,
+    displayTitle: detail.cluster.display_title,
+    topic: detail.cluster.topic,
+    articles: mapClusterResponseArticles(detail.articles),
+  }))
 
-  const showSkeleton = (isLoading || isClustersLoading) && activePage === 0 && topicClusters.length === 0
+  const showSkeleton = isLoading && activePage === 0 && topicClusters.length === 0
 
   return (
     <div className="space-y-6">
       {showSkeleton && (
         <div className="space-y-6">
           <TopicSectionHeaderSkeleton />
-          <div className="space-y-6">
+          {/* Same width constraint as TopicFeedSection's cluster list */}
+          <div className="max-w-4xl mx-auto space-y-6">
             <ClusterCardSkeleton />
             <ClusterCardSkeleton />
             <ClusterCardSkeleton />
@@ -103,13 +79,7 @@ export default function FeedPage() {
         </p>
       )}
 
-      {!isLoading && !error && hasClusterError && (
-        <p className="text-sm text-destructive">
-          Неуспешно вчитување детали за групата.
-        </p>
-      )}
-
-      {!isLoading && !error && !isClustersLoading && !hasClusterError && data !== undefined && (data.clusters?.length ?? 0) === 0 && <FeedEmpty />}
+      {!isLoading && !error && data !== undefined && (data.cluster_details?.length ?? 0) === 0 && <FeedEmpty />}
 
       {topicClusters.length > 0 && (
         <>
@@ -119,7 +89,7 @@ export default function FeedPage() {
             <div className="flex justify-center pt-2 pb-6">
               <button
                 onClick={() => setPage((p) => p + 1)}
-                disabled={isLoadingMore || isClustersLoading}
+                disabled={isLoadingMore}
                 className="group flex items-center gap-2 px-4 py-2 rounded-sm border border-border/60 bg-muted/40 hover:bg-muted hover:border-editorial/40 transition-all duration-150 disabled:opacity-50"
                 style={{ fontFamily: 'var(--font-mono)', letterSpacing: '0.05em' }}
               >

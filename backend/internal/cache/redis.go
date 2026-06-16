@@ -11,7 +11,11 @@ type Client struct {
 	rdb *redis.Client
 }
 
-func New(url string) (*Client, error) {
+func NewCache(url string) (*Client, error) {
+	// Empty REDIS_URL disables caching and rate limiting entirely.
+	if url == "" {
+		return nil, nil
+	}
 	opts, err := redis.ParseURL(url)
 	if err != nil {
 		return nil, err

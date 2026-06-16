@@ -13,206 +13,193 @@ import (
 )
 
 const (
-	// EmbeddingDimension is the standard dimension for sentence transformer embeddings
-	EmbeddingDimension = 384
-	// DefaultMaxSequenceLength is the default max sequence length for tokenization
+	EmbeddingDimension       = 384
 	DefaultMaxSequenceLength = 256
-	// DefaultBatchSize is the default ONNX inference batch size.
-	DefaultBatchSize = 8
+	DefaultBatchSize         = 8
 )
 
-// EmbeddingGenerator generates semantic embeddings using ONNX Runtime
-type EmbeddingGenerator struct {
-	session     *ort.AdvancedSession
-	tokenizer   *SentenceTokenizer
-	initialized bool
-	mu          sync.Mutex
-	log         *logger.Logger
-	batchSize   int
-
-	// Input/output tensors (reused for each inference)
+// onnxResources groups the ONNX session and its pre-allocated tensors so they
+// can be created and destroyed together.
+type onnxResources struct {
+	session             *ort.AdvancedSession
 	inputIDsTensor      *ort.Tensor[int64]
 	attentionMaskTensor *ort.Tensor[int64]
 	tokenTypeIDsTensor  *ort.Tensor[int64]
 	outputTensor        *ort.Tensor[float32]
 }
 
-// NewEmbeddingGenerator creates a new embedding generator with ONNX Runtime
+func (r *onnxResources) destroy() {
+	if r.session != nil {
+		r.session.Destroy()
+	}
+	if r.inputIDsTensor != nil {
+		r.inputIDsTensor.Destroy()
+	}
+	if r.attentionMaskTensor != nil {
+		r.attentionMaskTensor.Destroy()
+	}
+	if r.tokenTypeIDsTensor != nil {
+		r.tokenTypeIDsTensor.Destroy()
+	}
+	if r.outputTensor != nil {
+		r.outputTensor.Destroy()
+	}
+}
+
+// EmbeddingGenerator generates semantic embeddings using ONNX Runtime.
+type EmbeddingGenerator struct {
+	resources   *onnxResources
+	tokenizer   *sentenceTokenizer
+	initialized bool
+	mu          sync.Mutex
+	log         *logger.Logger
+	batchSize   int
+}
+
+// NewEmbeddingGenerator creates an embedding generator backed by an ONNX model.
+// If ONNX is unconfigured or the model files are missing, it returns an
+// uninitialized generator that silently produces no embeddings.
 func NewEmbeddingGenerator(cfg *config.Config, log *logger.Logger) (*EmbeddingGenerator, error) {
-	gen := &EmbeddingGenerator{
-		log:         log,
-		initialized: false,
-		batchSize:   DefaultBatchSize,
-	}
+	gen := &EmbeddingGenerator{log: log, batchSize: DefaultBatchSize}
 
-	// Check if ONNX Runtime library path is set
-	if cfg.ONNXRuntimeLibPath == "" {
+	if cfg.ONNX.RuntimeLibPath == "" {
 		log.Warnw("ONNX_RUNTIME_LIB_PATH not set, embeddings disabled")
-		return gen, nil // Return uninitialized generator (no embeddings)
-	}
-
-	// Check if model file exists
-	if _, err := os.Stat(cfg.ONNXModelPath); os.IsNotExist(err) {
-		log.Warnw("ONNX model file not found, embeddings disabled", "path", cfg.ONNXModelPath)
 		return gen, nil
 	}
 
-	// Set the ONNX Runtime library path
-	ort.SetSharedLibraryPath(cfg.ONNXRuntimeLibPath)
-
-	// Initialize ONNX Runtime environment
-	if !ort.IsInitialized() {
-		err := ort.InitializeEnvironment()
-		if err != nil {
-			log.Warnw("failed to initialize ONNX Runtime, embeddings disabled", "error", err)
-			return gen, nil
-		}
+	if _, err := os.Stat(cfg.ONNX.ModelPath); os.IsNotExist(err) {
+		log.Warnw("ONNX model file not found, embeddings disabled", "path", cfg.ONNX.ModelPath)
+		return gen, nil
 	}
 
-	// Load tokenizer
-	tokenizer, err := LoadTokenizer(cfg.ONNXTokenizerPath, log)
+	tokenizer, err := loadTokenizer(cfg.ONNX.TokenizerPath, log)
 	if err != nil {
 		log.Warnw("failed to load tokenizer, embeddings disabled", "error", err)
 		return gen, nil
 	}
-	gen.tokenizer = tokenizer
 
-	// Get model input/output info to determine names
-	inputInfo, outputInfo, err := ort.GetInputOutputInfo(cfg.ONNXModelPath)
+	resources, err := initSession(cfg, gen.batchSize)
 	if err != nil {
-		log.Warnw("failed to get model info, embeddings disabled", "error", err)
+		log.Warnw("failed to initialize ONNX session, embeddings disabled", "error", err)
 		return gen, nil
 	}
 
+	gen.tokenizer = tokenizer
+	gen.resources = resources
+	gen.initialized = true
+
+	log.Infow("ONNX embedding generator initialized",
+		"model_path", cfg.ONNX.ModelPath,
+		"tokenizer_path", cfg.ONNX.TokenizerPath)
+
+	return gen, nil
+}
+
+func initSession(cfg *config.Config, batchSize int) (*onnxResources, error) {
+	ort.SetSharedLibraryPath(cfg.ONNX.RuntimeLibPath)
+	if !ort.IsInitialized() {
+		if err := ort.InitializeEnvironment(); err != nil {
+			return nil, fmt.Errorf("initialize ONNX Runtime: %w", err)
+		}
+	}
+
+	inputInfo, outputInfo, err := ort.GetInputOutputInfo(cfg.ONNX.ModelPath)
+	if err != nil {
+		return nil, fmt.Errorf("get model info: %w", err)
+	}
 	if len(inputInfo) < 2 || len(inputInfo) > 3 || len(outputInfo) < 1 {
-		log.Warnw("unexpected model input/output count, embeddings disabled",
-			"inputs", len(inputInfo), "outputs", len(outputInfo))
-		return gen, nil
+		return nil, fmt.Errorf("unexpected model input/output count: inputs=%d outputs=%d", len(inputInfo), len(outputInfo))
+	}
+
+	r := &onnxResources{}
+	shape := ort.NewShape(int64(batchSize), int64(DefaultMaxSequenceLength))
+
+	r.inputIDsTensor, err = ort.NewEmptyTensor[int64](shape)
+	if err != nil {
+		return nil, fmt.Errorf("create input IDs tensor: %w", err)
+	}
+
+	r.attentionMaskTensor, err = ort.NewEmptyTensor[int64](shape)
+	if err != nil {
+		r.destroy()
+		return nil, fmt.Errorf("create attention mask tensor: %w", err)
 	}
 
 	inputNames := []string{inputInfo[0].Name, inputInfo[1].Name}
 	outputNames := []string{outputInfo[0].Name}
 
-	// Create input tensors (shape: [batch, max_length])
-	shape := ort.NewShape(int64(gen.batchSize), int64(DefaultMaxSequenceLength))
-	inputIDsTensor, err := ort.NewEmptyTensor[int64](shape)
-	if err != nil {
-		log.Warnw("failed to create input IDs tensor, embeddings disabled", "error", err)
-		return gen, nil
-	}
-
-	attentionMaskTensor, err := ort.NewEmptyTensor[int64](shape)
-	if err != nil {
-		inputIDsTensor.Destroy()
-		log.Warnw("failed to create attention mask tensor, embeddings disabled", "error", err)
-		return gen, nil
-	}
-
-	var tokenTypeIDsTensor *ort.Tensor[int64]
 	if len(inputInfo) == 3 {
-		tokenTypeIDsTensor, err = ort.NewEmptyTensor[int64](shape)
+		r.tokenTypeIDsTensor, err = ort.NewEmptyTensor[int64](shape)
 		if err != nil {
-			inputIDsTensor.Destroy()
-			attentionMaskTensor.Destroy()
-			log.Warnw("failed to create token type IDs tensor, embeddings disabled", "error", err)
-			return gen, nil
+			r.destroy()
+			return nil, fmt.Errorf("create token type IDs tensor: %w", err)
 		}
 		inputNames = append(inputNames, inputInfo[2].Name)
 	}
 
-	// Create output tensor (shape: [batch, seq_len, 384]) for last_hidden_state
-	outputShape := ort.NewShape(int64(gen.batchSize), int64(DefaultMaxSequenceLength), int64(EmbeddingDimension))
-	outputTensor, err := ort.NewEmptyTensor[float32](outputShape)
+	outputShape := ort.NewShape(int64(batchSize), int64(DefaultMaxSequenceLength), int64(EmbeddingDimension))
+	r.outputTensor, err = ort.NewEmptyTensor[float32](outputShape)
 	if err != nil {
-		inputIDsTensor.Destroy()
-		attentionMaskTensor.Destroy()
-		if tokenTypeIDsTensor != nil {
-			tokenTypeIDsTensor.Destroy()
-		}
-		log.Warnw("failed to create output tensor, embeddings disabled", "error", err)
-		return gen, nil
+		r.destroy()
+		return nil, fmt.Errorf("create output tensor: %w", err)
 	}
 
-	// Create session options
 	sessionOptions, err := ort.NewSessionOptions()
 	if err != nil {
-		inputIDsTensor.Destroy()
-		attentionMaskTensor.Destroy()
-		if tokenTypeIDsTensor != nil {
-			tokenTypeIDsTensor.Destroy()
-		}
-		outputTensor.Destroy()
-		log.Warnw("failed to create session options, embeddings disabled", "error", err)
-		return gen, nil
+		r.destroy()
+		return nil, fmt.Errorf("create session options: %w", err)
 	}
 
-	// Create ONNX session
-	inputs := []ort.Value{inputIDsTensor, attentionMaskTensor}
-	if tokenTypeIDsTensor != nil {
-		inputs = append(inputs, tokenTypeIDsTensor)
+	inputs := []ort.Value{r.inputIDsTensor, r.attentionMaskTensor}
+	if r.tokenTypeIDsTensor != nil {
+		inputs = append(inputs, r.tokenTypeIDsTensor)
 	}
-	outputs := []ort.Value{outputTensor}
-	session, err := ort.NewAdvancedSession(
-		cfg.ONNXModelPath,
+
+	r.session, err = ort.NewAdvancedSession(
+		cfg.ONNX.ModelPath,
 		inputNames,
 		outputNames,
 		inputs,
-		outputs,
+		[]ort.Value{r.outputTensor},
 		sessionOptions,
 	)
 	if err != nil {
-		inputIDsTensor.Destroy()
-		attentionMaskTensor.Destroy()
-		if tokenTypeIDsTensor != nil {
-			tokenTypeIDsTensor.Destroy()
-		}
-		outputTensor.Destroy()
-		sessionOptions.Destroy()
-		log.Warnw("failed to create ONNX session, embeddings disabled", "error", err)
-		return gen, nil
+		r.destroy()
+		return nil, fmt.Errorf("create ONNX session: %w", err)
 	}
 
-	gen.session = session
-	gen.inputIDsTensor = inputIDsTensor
-	gen.attentionMaskTensor = attentionMaskTensor
-	gen.tokenTypeIDsTensor = tokenTypeIDsTensor
-	gen.outputTensor = outputTensor
-	gen.initialized = true
-
-	log.Infow("ONNX embedding generator initialized successfully",
-		"model_path", cfg.ONNXModelPath,
-		"tokenizer_path", cfg.ONNXTokenizerPath)
-
-	return gen, nil
+	return r, nil
 }
 
-// IsInitialized returns whether the generator is using ONNX Runtime
+// IsInitialized reports whether the ONNX model loaded successfully.
 func (eg *EmbeddingGenerator) IsInitialized() bool {
 	return eg.initialized
 }
 
-// TokenCount returns the number of tokens for text using the embedding tokenizer.
-func (eg *EmbeddingGenerator) TokenCount(text string) (int, error) {
-	if eg == nil || eg.tokenizer == nil {
+// hasTokenizer reports whether a tokenizer is loaded and ready.
+func (eg *EmbeddingGenerator) hasTokenizer() bool {
+	return eg != nil && eg.tokenizer != nil
+}
+
+// tokenCount returns the number of tokens in text.
+func (eg *EmbeddingGenerator) tokenCount(text string) (int, error) {
+	if !eg.hasTokenizer() {
 		return 0, fmt.Errorf("tokenizer not initialized")
 	}
-
-	return eg.tokenizer.TokenCount(text)
+	return eg.tokenizer.tokenCount(text)
 }
 
-// TruncateTextToTokens truncates text to the first maxTokens using the embedding tokenizer.
-func (eg *EmbeddingGenerator) TruncateTextToTokens(text string, maxTokens int) (string, error) {
-	if eg == nil || eg.tokenizer == nil {
+// truncateTextToTokens truncates text to at most maxTokens tokens.
+func (eg *EmbeddingGenerator) truncateTextToTokens(text string, maxTokens int) (string, error) {
+	if !eg.hasTokenizer() {
 		return text, fmt.Errorf("tokenizer not initialized")
 	}
-
-	return eg.tokenizer.TruncateTextToTokens(text, maxTokens)
+	return eg.tokenizer.truncateTextToTokens(text, maxTokens)
 }
 
-// GenerateEmbedding generates a semantic embedding vector using ONNX model
-// Returns a normalized vector (L2 norm = 1) for cosine similarity
+// GenerateEmbedding returns a normalized 384-dimension embedding for text.
 func (eg *EmbeddingGenerator) GenerateEmbedding(ctx context.Context, text string) ([]float32, error) {
-	embeddings, err := eg.GenerateEmbeddingsBatch(ctx, []string{text})
+	embeddings, err := eg.generateEmbeddingsBatch(ctx, []string{text})
 	if err != nil {
 		return nil, err
 	}
@@ -222,13 +209,8 @@ func (eg *EmbeddingGenerator) GenerateEmbedding(ctx context.Context, text string
 	return embeddings[0], nil
 }
 
-// GenerateEmbeddingsBatch generates embeddings for a batch of texts using a single ONNX run.
-func (eg *EmbeddingGenerator) GenerateEmbeddingsBatch(ctx context.Context, texts []string) ([][]float32, error) {
-	if !eg.initialized {
-		// ONNX not available; return no embeddings.
-		return nil, nil
-	}
-	if len(texts) == 0 {
+func (eg *EmbeddingGenerator) generateEmbeddingsBatch(ctx context.Context, texts []string) ([][]float32, error) {
+	if !eg.initialized || len(texts) == 0 {
 		return nil, nil
 	}
 	if err := ctx.Err(); err != nil {
@@ -238,25 +220,24 @@ func (eg *EmbeddingGenerator) GenerateEmbeddingsBatch(ctx context.Context, texts
 	eg.mu.Lock()
 	defer eg.mu.Unlock()
 
+	r := eg.resources
 	maxLen := DefaultMaxSequenceLength
 	batchSize := eg.batchSize
-	inputIDsData := eg.inputIDsTensor.GetData()
-	attentionMaskData := eg.attentionMaskTensor.GetData()
+	inputIDsData := r.inputIDsTensor.GetData()
+	attentionMaskData := r.attentionMaskTensor.GetData()
 	var tokenTypeIDsData []int64
-	if eg.tokenTypeIDsTensor != nil {
-		tokenTypeIDsData = eg.tokenTypeIDsTensor.GetData()
+	if r.tokenTypeIDsTensor != nil {
+		tokenTypeIDsData = r.tokenTypeIDsTensor.GetData()
 	}
 
 	results := make([][]float32, 0, len(texts))
+
 	for start := 0; start < len(texts); start += batchSize {
 		if err := ctx.Err(); err != nil {
 			return nil, err
 		}
 
-		end := start + batchSize
-		if end > len(texts) {
-			end = len(texts)
-		}
+		end := min(start+batchSize, len(texts))
 		count := end - start
 
 		for i := 0; i < batchSize; i++ {
@@ -265,7 +246,7 @@ func (eg *EmbeddingGenerator) GenerateEmbeddingsBatch(ctx context.Context, texts
 			rowMask := attentionMaskData[rowOffset : rowOffset+maxLen]
 
 			if i < count {
-				inputIDs, attentionMask, err := eg.tokenizer.Encode(texts[start+i], maxLen)
+				inputIDs, attentionMask, err := eg.tokenizer.encode(texts[start+i], maxLen)
 				if err != nil {
 					return nil, fmt.Errorf("failed to tokenize text: %w", err)
 				}
@@ -286,51 +267,20 @@ func (eg *EmbeddingGenerator) GenerateEmbeddingsBatch(ctx context.Context, texts
 			}
 		}
 
-		// Run inference for this batch.
-		if err := eg.session.Run(); err != nil {
-			return nil, fmt.Errorf("failed to run ONNX inference: %w", err)
+		if err := r.session.Run(); err != nil {
+			return nil, fmt.Errorf("ONNX inference failed: %w", err)
 		}
 
-		outputData := eg.outputTensor.GetData()
-		expectedLen := batchSize * maxLen * EmbeddingDimension
-		if len(outputData) != expectedLen {
-			return nil, fmt.Errorf("unexpected output dimension: expected %d, got %d", expectedLen, len(outputData))
+		outputData := r.outputTensor.GetData()
+		if expected := batchSize * maxLen * EmbeddingDimension; len(outputData) != expected {
+			return nil, fmt.Errorf("unexpected output size: expected %d, got %d", expected, len(outputData))
 		}
 
 		for i := 0; i < count; i++ {
-			rowOffset := i * maxLen
-			embedding := make([]float32, EmbeddingDimension)
-			var tokenCount float32
-
-			for t := 0; t < maxLen; t++ {
-				if attentionMaskData[rowOffset+t] == 0 {
-					continue
-				}
-				tokenCount++
-				base := ((i * maxLen) + t) * EmbeddingDimension
-				for d := 0; d < EmbeddingDimension; d++ {
-					embedding[d] += outputData[base+d]
-				}
+			embedding, err := meanPoolAndNormalize(outputData, attentionMaskData, i, maxLen)
+			if err != nil {
+				return nil, err
 			}
-
-			if tokenCount == 0 {
-				return nil, fmt.Errorf("no valid tokens for pooling")
-			}
-			for d := 0; d < EmbeddingDimension; d++ {
-				embedding[d] /= tokenCount
-			}
-
-			var norm float32
-			for _, val := range embedding {
-				norm += val * val
-			}
-			norm = float32(math.Sqrt(float64(norm)))
-			if norm > 0 {
-				for d := range embedding {
-					embedding[d] /= norm
-				}
-			}
-
 			results = append(results, embedding)
 		}
 	}
@@ -338,36 +288,38 @@ func (eg *EmbeddingGenerator) GenerateEmbeddingsBatch(ctx context.Context, texts
 	return results, nil
 }
 
-// Close releases ONNX Runtime resources
-func (eg *EmbeddingGenerator) Close() error {
-	eg.mu.Lock()
-	defer eg.mu.Unlock()
+func meanPoolAndNormalize(outputData []float32, attentionMask []int64, batchIdx, maxLen int) ([]float32, error) {
+	embedding := make([]float32, EmbeddingDimension)
+	rowOffset := batchIdx * maxLen
+	var tokenCount float32
 
-	if eg.session != nil {
-		eg.session.Destroy()
-		eg.session = nil
+	for t := 0; t < maxLen; t++ {
+		if attentionMask[rowOffset+t] == 0 {
+			continue
+		}
+		tokenCount++
+		base := (rowOffset + t) * EmbeddingDimension
+		for d := 0; d < EmbeddingDimension; d++ {
+			embedding[d] += outputData[base+d]
+		}
 	}
 
-	if eg.inputIDsTensor != nil {
-		eg.inputIDsTensor.Destroy()
-		eg.inputIDsTensor = nil
+	if tokenCount == 0 {
+		return nil, fmt.Errorf("no valid tokens for pooling")
+	}
+	for d := range embedding {
+		embedding[d] /= tokenCount
 	}
 
-	if eg.attentionMaskTensor != nil {
-		eg.attentionMaskTensor.Destroy()
-		eg.attentionMaskTensor = nil
+	var norm float32
+	for _, v := range embedding {
+		norm += v * v
+	}
+	if norm = float32(math.Sqrt(float64(norm))); norm > 0 {
+		for d := range embedding {
+			embedding[d] /= norm
+		}
 	}
 
-	if eg.tokenTypeIDsTensor != nil {
-		eg.tokenTypeIDsTensor.Destroy()
-		eg.tokenTypeIDsTensor = nil
-	}
-
-	if eg.outputTensor != nil {
-		eg.outputTensor.Destroy()
-		eg.outputTensor = nil
-	}
-
-	eg.initialized = false
-	return nil
+	return embedding, nil
 }

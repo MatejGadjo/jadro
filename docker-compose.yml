@@ -20,7 +20,6 @@ services:
       APP_ENV: ${APP_ENV:-development}
       LOG_LEVEL: ${LOG_LEVEL:-info}
       ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-}
-      INTERNAL_API_TOKEN: ${INTERNAL_API_TOKEN:-}
       INGEST_CRON: ${INGEST_CRON:-*/15 * * * *}
       CLEANUP_CRON: ${CLEANUP_CRON:-0 3 * * *}
       CLEANUP_RETENTION_DAYS: ${CLEANUP_RETENTION_DAYS:-3}
@@ -60,6 +59,18 @@ services:
   redis:
     image: redis:7-alpine
     restart: unless-stopped
+    command: redis-server --maxmemory 100mb --maxmemory-policy allkeys-lru
 
 volumes:
   postgres_data:
+
+networks:
+  # Pin the default network subnet so it never drifts on a network teardown +
+  # recreate. The backend's SetTrustedProxies (internal/rest/server.go) hardcodes
+  # this range to trust X-Forwarded-For from the nginx container — if Docker
+  # auto-assigned a different subnet, ClientIP() would fall back to the nginx
+  # container IP and per-IP rate limiting would silently collapse to one bucket.
+  default:
+    ipam:
+      config:
+        - subnet: 172.18.0.0/16

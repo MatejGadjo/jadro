@@ -8,12 +8,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/MatejGadjo/NewsAggregator/internal/logger"
+	"github.com/MatejGadjo/NewsAggregator/domain"
 	"github.com/MatejGadjo/NewsAggregator/internal/ranking"
-	"github.com/MatejGadjo/NewsAggregator/internal/storage"
-	"github.com/MatejGadjo/NewsAggregator/internal/storage/postgres"
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 const (
@@ -26,9 +23,8 @@ const (
 	// MaxANNNeighbors limits how many nearest neighbors we pull per article for ANN clustering.
 	MaxANNNeighbors = 25
 
-	clusterDisplayTitleEmbeddingWeight        = 1.3
-	clusterDisplayTitleMinEmbeddingArticles   = 2
-	clusterDisplayTitleMinEmbeddingSimilarity = 0.28
+	clusterDisplayTitleEmbeddingWeight      = 1.3
+	clusterDisplayTitleMinEmbeddingArticles = 2
 )
 
 type clusterTitleCandidate struct {
@@ -39,15 +35,17 @@ type clusterTitleCandidate struct {
 }
 
 var clusterDisplayTitleStopWords = map[string]struct{}{
-	"all": {}, "about": {}, "after": {}, "again": {}, "against": {}, "also": {}, "an": {}, "and": {}, "any": {}, "are": {}, "as": {}, "at": {},
-	"because": {}, "been": {}, "before": {}, "being": {}, "between": {}, "both": {}, "but": {}, "by": {}, "for": {}, "from": {}, "had": {}, "has": {},
-	"have": {}, "having": {}, "her": {}, "how": {}, "if": {}, "in": {}, "into": {}, "is": {}, "it": {}, "its": {}, "just": {}, "may": {}, "more": {},
-	"most": {}, "no": {}, "not": {}, "of": {}, "on": {}, "or": {}, "our": {}, "out": {}, "so": {}, "some": {}, "such": {}, "that": {}, "the": {},
-	"their": {}, "them": {}, "then": {}, "there": {}, "these": {}, "they": {}, "this": {}, "those": {}, "through": {}, "to": {}, "too": {}, "under": {},
-	"until": {}, "up": {}, "was": {}, "were": {}, "what": {}, "when": {}, "where": {}, "which": {}, "while": {}, "who": {}, "why": {}, "will": {}, "with": {},
-	"would": {}, "you": {}, "video": {}, "images": {}, "photo": {}, "photos": {}, "watch": {}, "live": {}, "update": {}, "updates": {}, "breaking": {}, "latest": {},
-	"report": {}, "reports": {}, "here": {}, "today": {}, "tonight": {}, "analysis": {}, "analysis:": {},
-	"и": {}, "на": {}, "за": {}, "со": {}, "во": {}, "до": {}, "од": {}, "е": {}, "се": {}, "да": {}, "не": {}, "ќе": {}, "ти": {}, "ни": {}, "им": {},
+	// English — only words that appear in Macedonian news headlines
+	"video": {}, "photo": {}, "photos": {}, "images": {}, "watch": {}, "live": {},
+	"update": {}, "updates": {}, "breaking": {}, "latest": {}, "report": {}, "reports": {},
+	"today": {}, "tonight": {}, "analysis": {},
+	// Macedonian
+	"и": {}, "на": {}, "за": {}, "со": {}, "во": {}, "до": {}, "од": {}, "по": {}, "при": {}, "без": {}, "над": {}, "под": {}, "меѓу": {},
+	"е": {}, "се": {}, "да": {}, "не": {}, "ќе": {}, "ти": {}, "ни": {}, "им": {}, "ги": {}, "го": {}, "ја": {}, "си": {},
+	"или": {}, "но": {}, "оти": {}, "дека": {}, "што": {},
+	"кој": {}, "која": {}, "кои": {},
+	"овој": {}, "оваа": {}, "ова": {}, "тоа": {}, "тој": {}, "таа": {},
+	"еден": {}, "една": {}, "едно": {}, "нема": {},
 }
 
 var clusterTitleTokenRE = regexp.MustCompile(`[\p{L}0-9]+`)
@@ -55,131 +53,32 @@ var clusterTitleTokenRE = regexp.MustCompile(`[\p{L}0-9]+`)
 // ErrMissingEmbedding indicates clustering was skipped due to a missing embedding.
 var ErrMissingEmbedding = errors.New("clustering skipped: missing embedding (embedding_status must be ready)")
 
-// AssignArticleToClusterIncremental assigns a new article to the best-matching cluster
-// using ANN neighbors when embeddings are available.
-// Returns the cluster ID and whether a new cluster was created.
-func AssignArticleToClusterIncremental(
+func (s *ClusteringService) bestClusterByEmbedding(
 	ctx context.Context,
-	pool *pgxpool.Pool,
-	log *logger.Logger,
-	article storage.Article,
 	embedding []float32,
-) (int64, bool, error) {
-	if article.ID == 0 {
-		return 0, false, nil
-	}
-	if article.EmbeddingStatus != "ready" {
-		return 0, false, ErrMissingEmbedding
-	}
+) (int64, float64, error) {
 	if len(embedding) == 0 {
-		return 0, false, ErrMissingEmbedding
+		return 0, 0, nil
 	}
 
-	// Skip if already clustered (e.g., deduplicated URL).
-	existing, err := postgres.GetClusterIDsForArticles(ctx, pool, log, []int64{article.ID})
-	if err != nil {
-		return 0, false, err
-	}
-	if clusterID, ok := existing[article.ID]; ok {
-		return clusterID, false, nil
-	}
-
-	var (
-		bestClusterID int64
-		bestSim       float64
-	)
-	bestClusterID, bestSim, _, err = bestClusterByEmbedding(ctx, pool, log, embedding)
-	if err != nil {
-		return 0, false, err
-	}
-
-	attachable := bestClusterID != 0 && bestSim >= SimilarityThreshold
-	if !attachable {
-		clusterID, err := createClusterForArticle(ctx, pool, log, article)
-		if err != nil {
-			return 0, false, err
-		}
-		if err := postgres.AttachArticleToCluster(ctx, pool, log, clusterID, article.ID); err != nil {
-			return 0, false, err
-		}
-		if err := postgres.InsertClusterVector(ctx, pool, log, clusterID, embedding, 1); err != nil {
-			return 0, false, err
-		}
-		if err := updateClusterScorePreserveUpdatedAt(ctx, pool, log, clusterID); err != nil {
-			log.Warnw("failed to update new cluster score", "cluster_id", clusterID, "error", err)
-		}
-		return clusterID, true, nil
-	}
-
-	tx, err := pool.BeginTx(ctx, pgx.TxOptions{})
-	if err != nil {
-		return 0, false, err
-	}
-	defer func() {
-		_ = tx.Rollback(ctx)
-	}()
-
-	attached, err := postgres.AttachArticleToClusterWithStatsTx(ctx, tx, log, bestClusterID, article.ID, article.SourceID, lastSeenAtForArticle(article))
-	if err != nil {
-		return 0, false, err
-	}
-	if !attached {
-		if err := tx.Commit(ctx); err != nil {
-			return 0, false, err
-		}
-		return bestClusterID, false, nil
-	}
-	if err := postgres.UpdateClusterVectorWithEmbeddingTx(ctx, tx, log, bestClusterID, embedding); err != nil {
-		return 0, false, err
-	}
-
-	if err := tx.Commit(ctx); err != nil {
-		return 0, false, err
-	}
-
-	if err := updateClusterScorePreserveUpdatedAt(ctx, pool, log, bestClusterID); err != nil {
-		log.Warnw("failed to update cluster score", "cluster_id", bestClusterID, "error", err)
-	}
-	if err := refreshClusterDisplayTitle(ctx, pool, log, bestClusterID); err != nil {
-		log.Warnw("failed to refresh cluster display title", "cluster_id", bestClusterID, "error", err)
-	}
-
-	return bestClusterID, false, nil
-}
-
-func bestClusterByEmbedding(
-	ctx context.Context,
-	pool *pgxpool.Pool,
-	log *logger.Logger,
-	embedding []float32,
-) (int64, float64, []storage.ClusterNeighbor, error) {
-	if len(embedding) == 0 {
-		return 0, 0, nil, nil
-	}
-
-	neighbors, err := postgres.FindSimilarClusterNeighborsForClustering(
-		ctx, pool, log,
-		embedding,
-		DefaultClusteringHours,
-		MaxANNNeighbors,
-	)
+	neighbors, err := s.store.FindSimilarClusterNeighbors(ctx, embedding, DefaultClusteringHours, MaxANNNeighbors)
 	if err != nil || len(neighbors) == 0 {
-		return 0, 0, nil, err
+		return 0, 0, err
 	}
 
 	var bestClusterID int64
 	var bestSim float64
-	for _, neighbor := range neighbors {
-		if neighbor.Similarity > bestSim {
-			bestSim = neighbor.Similarity
-			bestClusterID = neighbor.ClusterID
+	for _, n := range neighbors {
+		if n.Similarity > bestSim {
+			bestSim = n.Similarity
+			bestClusterID = n.ClusterID
 		}
 	}
 
-	return bestClusterID, bestSim, neighbors, nil
+	return bestClusterID, bestSim, nil
 }
 
-func createClusterForArticle(ctx context.Context, pool *pgxpool.Pool, log *logger.Logger, article storage.Article) (int64, error) {
+func (s *ClusteringService) createClusterForArticle(ctx context.Context, article domain.Article) (int64, error) {
 	headline := article.Title
 	if headline == "" {
 		headline = article.NormalizedTitle
@@ -188,61 +87,61 @@ func createClusterForArticle(ctx context.Context, pool *pgxpool.Pool, log *logge
 	if len(summary) > 320 {
 		summary = summary[:320]
 	}
-	displayTitle := DeriveClusterDisplayTitleFromArticles([]storage.Article{article})
+	displayTitle := deriveClusterDisplayTitleFromArticles([]domain.Article{article})
 
-	return postgres.CreateClusterWithStats(ctx, pool, log, headline, summary, displayTitle, article.Topic, lastSeenAtForArticle(article), article.SourceID)
+	clusterID, err := s.store.CreateCluster(ctx, headline, summary, displayTitle, article.Topic, lastSeenAtForArticle(article))
+	if err != nil {
+		return 0, err
+	}
+	if err := s.store.InsertClusterSource(ctx, clusterID, article.SourceID); err != nil {
+		return 0, err
+	}
+	return clusterID, nil
 }
 
-func updateClusterScorePreserveUpdatedAt(ctx context.Context, pool *pgxpool.Pool, log *logger.Logger, clusterID int64) error {
-	cluster, err := postgres.GetClusterByID(ctx, pool, log, clusterID)
+func (s *ClusteringService) updateClusterScorePreserveUpdatedAt(ctx context.Context, clusterID int64) error {
+	cluster, err := s.store.GetClusterByID(ctx, clusterID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return pgx.ErrNoRows
+		}
+		return err
+	}
+	recentCount, err := s.store.GetRecentArticleCount(ctx, clusterID)
+	if err != nil {
+		s.log.Warnw("failed to get recent article count, using cached value", "cluster_id", clusterID, "error", err)
+		recentCount = int64(cluster.ArticlesLast6h)
+	}
+	cluster.ArticlesLast6h = int(recentCount)
+	score := computeClusterScoreFromStats(&cluster)
+	return s.store.UpdateClusterScoreValue(ctx, clusterID, score)
+}
+
+func (s *ClusteringService) refreshClusterDisplayTitle(ctx context.Context, clusterID int64) error {
+	_, err := s.store.GetClusterByID(ctx, clusterID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return pgx.ErrNoRows
+		}
+		return err
+	}
+
+	articles, err := s.store.GetArticlesInCluster(ctx, clusterID)
 	if err != nil {
 		return err
 	}
-	if cluster == nil {
-		return pgx.ErrNoRows
+
+	if err := s.hydrateArticleEmbeddings(ctx, articles); err != nil {
+		return err
 	}
-	// Refresh velocity so the score reflects current coverage momentum.
-	recentCount, err := postgres.GetRecentArticleCount(ctx, pool, log, clusterID)
-	if err != nil {
-		log.Warnw("failed to get recent article count, using cached value", "cluster_id", clusterID, "error", err)
-		recentCount = cluster.ArticlesLast6h
-	}
-	cluster.ArticlesLast6h = recentCount
-	score := computeClusterScoreFromStats(cluster)
-	return postgres.UpdateClusterScoreValue(ctx, pool, log, cluster.ID, score)
+	displayTitle := deriveClusterDisplayTitleFromArticles(articles)
+	return s.store.UpdateClusterDisplayTitle(ctx, clusterID, displayTitle)
 }
 
-func refreshClusterDisplayTitle(
+// hydrateArticleEmbeddings fills in the Embedding field for each article.
+func (s *ClusteringService) hydrateArticleEmbeddings(
 	ctx context.Context,
-	pool *pgxpool.Pool,
-	log *logger.Logger,
-	clusterID int64,
-) error {
-	cluster, err := postgres.GetClusterByID(ctx, pool, log, clusterID)
-	if err != nil {
-		return err
-	}
-	if cluster == nil {
-		return pgx.ErrNoRows
-	}
-
-	articles, err := postgres.GetArticlesInCluster(ctx, pool, log, clusterID)
-	if err != nil {
-		return err
-	}
-
-	if err := HydrateArticleEmbeddings(ctx, pool, log, articles); err != nil {
-		return err
-	}
-	displayTitle := DeriveClusterDisplayTitleFromArticles(articles)
-	return postgres.UpdateClusterDisplayTitle(ctx, pool, log, clusterID, displayTitle)
-}
-
-func HydrateArticleEmbeddings(
-	ctx context.Context,
-	pool *pgxpool.Pool,
-	log *logger.Logger,
-	articles []storage.Article,
+	articles []domain.Article,
 ) error {
 	if len(articles) == 0 {
 		return nil
@@ -256,9 +155,16 @@ func HydrateArticleEmbeddings(
 		articleIDs = append(articleIDs, article.ID)
 	}
 
-	embeddings, err := postgres.GetArticleEmbeddingsByIDs(ctx, pool, log, articleIDs)
+	rows, err := s.store.GetArticleEmbeddingsByIDs(ctx, articleIDs)
 	if err != nil {
 		return err
+	}
+
+	embeddings := make(map[int64][]float32, len(rows))
+	for _, r := range rows {
+		if len(r.Embedding) > 0 {
+			embeddings[r.ID] = r.Embedding
+		}
 	}
 
 	for i := range articles {
@@ -270,7 +176,7 @@ func HydrateArticleEmbeddings(
 	return nil
 }
 
-func DeriveClusterDisplayTitleFromArticles(articles []storage.Article) string {
+func deriveClusterDisplayTitleFromArticles(articles []domain.Article) string {
 	if len(articles) == 0 {
 		return fallbackClusterDisplayTitle()
 	}
@@ -333,7 +239,6 @@ func normalizeClusterDisplayTitle(value string) string {
 	return strings.TrimSpace(title)
 }
 
-
 func averageEmbeddingForTitleCandidates(candidates []clusterTitleCandidate) ([]float32, bool) {
 	var centroid []float32
 	count := 0
@@ -389,7 +294,7 @@ func cosineSimilarity(a, b []float32) (float64, bool) {
 	return dot / (math.Sqrt(normA) * math.Sqrt(normB)), true
 }
 
-func cleanRepresentativeArticleTitle(article storage.Article) string {
+func cleanRepresentativeArticleTitle(article domain.Article) string {
 	title := strings.TrimSpace(article.Title)
 	if title == "" {
 		title = strings.TrimSpace(article.NormalizedTitle)
@@ -415,7 +320,7 @@ func cleanRepresentativeArticleTitle(article storage.Article) string {
 	return title
 }
 
-func scoreRepresentativeArticleTitle(title string, article storage.Article) float64 {
+func scoreRepresentativeArticleTitle(title string, article domain.Article) float64 {
 	words := strings.Fields(title)
 	score := 0.0
 
@@ -451,14 +356,14 @@ func fallbackClusterDisplayTitle() string {
 	return "Top Stories"
 }
 
-func lastSeenAtForArticle(article storage.Article) time.Time {
+func lastSeenAtForArticle(article domain.Article) time.Time {
 	if article.PublishedAt != nil {
 		return *article.PublishedAt
 	}
 	return article.FetchedAt
 }
 
-func computeClusterScoreFromStats(cluster *storage.Cluster) float64 {
+func computeClusterScoreFromStats(cluster *domain.Cluster) float64 {
 	if cluster == nil {
 		return 0
 	}

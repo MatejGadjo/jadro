@@ -5,20 +5,18 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/MatejGadjo/NewsAggregator/internal/config"
 	"github.com/MatejGadjo/NewsAggregator/internal/logger"
-	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/robfig/cron/v3"
 )
 
-// CleanupJob periodically deletes articles older than the retention window and
-// any clusters that become empty as a result.
+// CleanupJob deletes articles older than the retention window and any clusters
+// that become empty as a result. Triggered on a schedule by the in-process cron.
 type CleanupJob struct {
-	pool            *pgxpool.Pool
-	log             *logger.Logger
-	retentionDays   int
-	cron            *cron.Cron
-	running         atomic.Bool
-	lastCleanupAt   atomic.Value // stores time.Time
+	store         CleanupStore
+	log           *logger.Logger
+	retentionDays int
+	running       atomic.Bool
+	lastCleanupAt atomic.Value // stores time.Time
 }
 
 func (j *CleanupJob) LastCleanupAt() *time.Time {
@@ -30,34 +28,28 @@ func (j *CleanupJob) LastCleanupAt() *time.Time {
 	return &t
 }
 
-func NewCleanupJob(pool *pgxpool.Pool, log *logger.Logger) *CleanupJob {
+func NewCleanupJob(cfg config.JobsConfig, store CleanupStore, log *logger.Logger) *CleanupJob {
 	return &CleanupJob{
-		pool: pool,
-		log:  log,
-		cron: cron.New(),
+		store:         store,
+		log:           log,
+		retentionDays: cfg.CleanupRetentionDays,
 	}
 }
 
-func (j *CleanupJob) Start(cronExpr string, retentionDays int) error {
-	j.retentionDays = retentionDays
-	if _, err := j.cron.AddFunc(cronExpr, j.run); err != nil {
-		return err
-	}
-	j.cron.Start()
-	return nil
-}
-
-func (j *CleanupJob) Stop() {
-	j.cron.Stop()
-}
-
-func (j *CleanupJob) run() {
+// RunOnce fires a single cleanup cycle in a new goroutine.
+// Returns false if a run is already in progress (caller should respond 409).
+func (j *CleanupJob) RunOnce() bool {
 	if !j.running.CompareAndSwap(false, true) {
-		j.log.Warnw("cleanup skipped: previous run still in progress")
-		return
+		return false
 	}
-	defer j.running.Store(false)
+	go func() {
+		defer j.running.Store(false)
+		j.doCleanup()
+	}()
+	return true
+}
 
+func (j *CleanupJob) doCleanup() {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
 
@@ -66,24 +58,17 @@ func (j *CleanupJob) run() {
 	interval := time.Duration(j.retentionDays) * 24 * time.Hour
 	cutoff := time.Now().UTC().Add(-interval)
 
-	tag, err := j.pool.Exec(ctx,
-		`DELETE FROM articles WHERE COALESCE(published_at, fetched_at) < $1`,
-		cutoff,
-	)
+	articlesDeleted, err := j.store.DeleteOldArticles(ctx, cutoff)
 	if err != nil {
 		j.log.Errorw("cleanup failed: delete articles", "error", err)
 		return
 	}
-	articlesDeleted := tag.RowsAffected()
 
-	tag, err = j.pool.Exec(ctx,
-		`DELETE FROM clusters WHERE id NOT IN (SELECT DISTINCT cluster_id FROM cluster_articles)`,
-	)
+	clustersDeleted, err := j.store.DeleteOrphanedClusters(ctx)
 	if err != nil {
 		j.log.Errorw("cleanup failed: delete orphaned clusters", "error", err)
 		return
 	}
-	clustersDeleted := tag.RowsAffected()
 
 	j.lastCleanupAt.Store(time.Now())
 
