@@ -47,6 +47,10 @@ services:
       POSTGRES_DB: newsaggregator
       POSTGRES_USER: news
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      # Loopback-only — not reachable externally, only via SSH tunnel or from
+      # the VPS itself. Do not change to a public bind (0.0.0.0).
+      - "127.0.0.1:5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -58,6 +62,8 @@ services:
 
   redis:
     image: redis:7-alpine
+    ports:
+      - "127.0.0.1:6379:6379"
     restart: unless-stopped
     command: redis-server --maxmemory 100mb --maxmemory-policy allkeys-lru
 
