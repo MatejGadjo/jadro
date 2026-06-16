@@ -1,15 +1,26 @@
 package main
 
 import (
-	"net/http"
+	"flag"
+	"fmt"
+	"os"
 
 	"github.com/MatejGadjo/NewsAggregator/internal/app"
-	"go.uber.org/fx"
+)
+
+var (
+	version   = "dev"
+	buildTime = "unknown"
 )
 
 func main() {
-	fx.New(
-		app.Module,
-		fx.Invoke(func(*http.Server) {}),
-	).Run()
+	versionFlag := flag.Bool("version", false, "print version and exit")
+	flag.Parse()
+
+	if *versionFlag {
+		fmt.Printf("version=%s built=%s\n", version, buildTime)
+		os.Exit(0)
+	}
+
+	app.Initialize().Run()
 }

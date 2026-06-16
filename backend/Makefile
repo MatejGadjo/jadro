@@ -1,11 +1,12 @@
 .PHONY: run build test test-verbose test-coverage clean deps help
 
-# Binary name
-BINARY_NAME=newsaggregator
 # Build directory
 BUILD_DIR=bin
-# Main package path
-MAIN_PATH=./cmd/api
+
+# Version info
+GIT_COMMIT=$(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+BUILD_TIME=$(shell date -u +%Y-%m-%dT%H:%M:%SZ)
+LDFLAGS=-ldflags "-X main.version=$(GIT_COMMIT) -X main.buildTime=$(BUILD_TIME)"
 
 # Default target
 .DEFAULT_GOAL := help
@@ -18,17 +19,17 @@ help:
 	@echo 'Targets:'
 	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "  %-15s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
-## run: Run the application
+## run: Run the API
 run:
-	@echo "Running application..."
-	@go run $(MAIN_PATH)/main.go
+	@echo "Running API..."
+	@go run ./cmd/api/main.go
 
-## build: Build the application binary
+## build: Build the API binary
 build:
-	@echo "Building application..."
+	@echo "Building API..."
 	@mkdir -p $(BUILD_DIR)
-	@go build -o $(BUILD_DIR)/$(BINARY_NAME) $(MAIN_PATH)/main.go
-	@echo "Binary built at $(BUILD_DIR)/$(BINARY_NAME)"
+	@go build $(LDFLAGS) -o $(BUILD_DIR)/newsaggregator ./cmd/api/main.go
+	@echo "Binary built at $(BUILD_DIR)/newsaggregator"
 
 ## test: Run all tests
 test:

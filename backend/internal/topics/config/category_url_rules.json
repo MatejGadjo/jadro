@@ -1,51 +1,51 @@
 [
   {
-    "pattern": "/(sport|sports)(/|$)",
+    "pattern": "/(sport|sports|спорт)(/|$)",
     "category": "SPORT",
     "strength": "strong"
   },
   {
-    "pattern": "/(ekonomija|biznis|business|finance)(/|$)",
+    "pattern": "/(ekonomija|biznis|business|finance|економија|бизнис|финансии)(/|$)",
     "category": "EKONOMIJA",
     "strength": "strong"
   },
   {
-    "pattern": "/(tehnologija|tehnologija-it|tech|technology|it)(/|$)",
+    "pattern": "/(tehnologija|tehnologija-it|tech|technology|it|технологија)(/|$)",
     "category": "TECHNOLOGY",
     "strength": "strong"
   },
   {
-    "pattern": "/(hronika|crna-hronika|crime)(/|$)",
+    "pattern": "/(hronika|crna-hronika|crime|хроника|црна-хроника)(/|$)",
     "category": "HRONIKA",
     "strength": "strong"
   },
   {
-    "pattern": "/(kultura|culture)(/|$)",
+    "pattern": "/(kultura|culture|култура)(/|$)",
     "category": "KULTURA",
     "strength": "strong"
   },
   {
-    "pattern": "/(scena|zabava|showbiz|entertainment|lifestyle)(/|$)",
+    "pattern": "/(scena|zabava|showbiz|entertainment|lifestyle|сцена|забава|шоубиз)(/|$)",
     "category": "SCENA",
     "strength": "strong"
   },
   {
-    "pattern": "/(skopje)(/|$)",
+    "pattern": "/(skopje|скопје)(/|$)",
     "category": "SKOPJE",
     "strength": "strong"
   },
   {
-    "pattern": "/(region|balkan)(/|$)",
+    "pattern": "/(region|balkan|регион|балкан)(/|$)",
     "category": "REGION",
     "strength": "strong"
   },
   {
-    "pattern": "/(svet|world|international)(/|$)",
+    "pattern": "/(svet|world|international|свет)(/|$)",
     "category": "SVET",
     "strength": "strong"
   },
   {
-    "pattern": "/(makedonija|domashno|home)(/|$)",
+    "pattern": "/(makedonija|domashno|home|македонија|домашно)(/|$)",
     "category": "MAKEDONIJA",
     "strength": "strong"
   }

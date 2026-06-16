@@ -18,7 +18,6 @@ const queryClient = new QueryClient({
   },
 })
 
-// TODO: RouterProvider will be integrated here when routes are defined
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
