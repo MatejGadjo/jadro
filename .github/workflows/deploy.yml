@@ -57,3 +57,9 @@ jobs:
             git pull origin master
             docker compose up -d --build
             docker image prune -f
+            # nginx.conf is bind-mounted; Compose only recreates a container
+            # when its service definition changes, not when a mounted file's
+            # contents change. Reload (not restart) so nginx always picks up
+            # the latest config with zero dropped connections, even on
+            # deploys that only touch nginx/nginx.conf.
+            docker compose exec nginx nginx -s reload
