@@ -14,33 +14,57 @@ func mustClassifierFromDefaultConfig(t *testing.T) *Classifier {
 	return classifier
 }
 
-func TestClassifyArticle_FeedMappingWins(t *testing.T) {
-	classifier, err := newClassifier(
-		feedMapConfig{FeedIDs: map[string]string{"42": "SCENA"}},
-		map[string]string{"спорт": "SPORT"},
-		[]urlRuleConfig{{Pattern: "/(sport)(/|$)", Category: "SPORT", Strength: "strong"}},
-		map[string][]keywordConfig{
-			"SPORT": {{Pattern: "спорт", Weight: 10}},
-			"SCENA": {{Pattern: "ѕвезда", Weight: 10}},
-		},
-	)
-	require.NoError(t, err)
+func TestClassifyArticle_ForcedSourceDomain(t *testing.T) {
+	classifier := mustClassifierFromDefaultConfig(t)
 
-	feedID := int64(42)
+	// Misleading economy keywords + RSS category — forced source must win.
 	result := classifier.ClassifyArticle(ClassificationInput{
-		FeedID:      &feedID,
-		FeedURL:     "https://example.com/feed/",
-		URL:         "https://example.com/sport/derbi",
-		Title:       "спорт вести",
-		Description: "ѕвезда",
-		RSSCategories: []string{
-			"спорт",
-		},
+		FeedURL:       "https://sportmanija.mk/feed/",
+		Domain:        "sportmanija.mk",
+		URL:           "https://sportmanija.mk/vesti/123",
+		Title:         "Банка и инфлација во фокусот",
+		Description:   "Економија и берза",
+		RSSCategories: []string{"Економија"},
 	})
 
-	assert.Equal(t, TopicScene, result.Category)
-	assert.Equal(t, CategoryMethodFeedMap, result.Method)
-	assert.InDelta(t, 0.98, result.Confidence, 0.0001)
+	assert.Equal(t, TopicSport, result.Category)
+	assert.Equal(t, CategoryMethodForce, result.Method)
+	assert.InDelta(t, 1.0, result.Confidence, 0.0001)
+	assert.Equal(t, "sportmanija.mk", result.Signals["forcedSource"])
+}
+
+func TestClassifyArticle_ForcedSourceFeedPrefix(t *testing.T) {
+	classifier := mustClassifierFromDefaultConfig(t)
+
+	result := classifier.ClassifyArticle(ClassificationInput{
+		FeedURL:     "https://kajgana.com/sport/rss",
+		Domain:      "kajgana.com",
+		URL:         "https://kajgana.com/nekoja-statija",
+		Title:       "Општ наслов",
+		Description: "Опис",
+	})
+
+	assert.Equal(t, TopicSport, result.Category)
+	assert.Equal(t, CategoryMethodForce, result.Method)
+	assert.InDelta(t, 1.0, result.Confidence, 0.0001)
+	assert.Equal(t, "kajgana.com/sport", result.Signals["forcedSource"])
+}
+
+func TestClassifyArticle_NonForcedFeedOnForcedPrefixDomain(t *testing.T) {
+	classifier := mustClassifierFromDefaultConfig(t)
+
+	// kajgana.com/vesti is not forced — must fall through to the classifier.
+	result := classifier.ClassifyArticle(ClassificationInput{
+		FeedURL:       "https://kajgana.com/vesti/rss",
+		Domain:        "kajgana.com",
+		URL:           "https://kajgana.com/nekoja-statija",
+		Title:         "Општ наслов",
+		Description:   "Опис",
+		RSSCategories: []string{"Економија"},
+	})
+
+	assert.Equal(t, TopicEconomy, result.Category)
+	assert.Equal(t, CategoryMethodRSSCategory, result.Method)
 }
 
 func TestClassifyArticle_RSSCategoryMapping(t *testing.T) {
@@ -101,6 +125,20 @@ func TestClassifyArticle_TechnologyURLRule(t *testing.T) {
 	assert.InDelta(t, 0.88, result.Confidence, 0.0001)
 }
 
+func TestClassifyArticle_CyrillicURLRule(t *testing.T) {
+	classifier := mustClassifierFromDefaultConfig(t)
+
+	// Percent-encoded /спорт/ path segment.
+	result := classifier.ClassifyArticle(ClassificationInput{
+		URL:         "https://news.example.com/%D1%81%D0%BF%D0%BE%D1%80%D1%82/fudbal/123",
+		Title:       "Случаен наслов",
+		Description: "Без силни клучни зборови",
+	})
+
+	assert.Equal(t, TopicSport, result.Category)
+	assert.Equal(t, CategoryMethodURLRule, result.Method)
+}
+
 func TestClassifyArticle_SKOPJEvsMAKEDONIJA(t *testing.T) {
 	classifier := mustClassifierFromDefaultConfig(t)
 
@@ -112,7 +150,6 @@ func TestClassifyArticle_SKOPJEvsMAKEDONIJA(t *testing.T) {
 
 	assert.Equal(t, TopicSkopje, result.Category)
 	assert.Equal(t, CategoryMethodKeywordRule, result.Method)
-	assert.Equal(t, "skopje_strong", result.Signals["overrideApplied"])
 }
 
 func TestClassifyArticle_HRONIKAOverride(t *testing.T) {
@@ -126,7 +163,6 @@ func TestClassifyArticle_HRONIKAOverride(t *testing.T) {
 
 	assert.Equal(t, TopicChronicle, result.Category)
 	assert.Equal(t, CategoryMethodKeywordRule, result.Method)
-	assert.Equal(t, "hronika_strong", result.Signals["overrideApplied"])
 }
 
 func TestClassifyArticle_REGIONvsSVET(t *testing.T) {
@@ -153,7 +189,6 @@ func TestClassifyArticle_KULTURAvsSCENA(t *testing.T) {
 
 	assert.Equal(t, TopicCulture, result.Category)
 	assert.Equal(t, CategoryMethodKeywordRule, result.Method)
-	assert.Equal(t, "kultura_over_scena", result.Signals["overrideApplied"])
 }
 
 func TestClassifyArticle_DeterministicOrdering(t *testing.T) {

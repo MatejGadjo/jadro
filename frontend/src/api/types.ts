@@ -2,6 +2,7 @@ import { z } from "zod";
 import {
   FeedResponseSchema,
   ClusterResponseSchema,
+  ClusterDetailSchema,
   ClusterSchema,
   ArticleSchema,
   SourceSchema,
@@ -15,6 +16,7 @@ import {
 
 export type FeedResponse = z.infer<typeof FeedResponseSchema>;
 export type ClusterResponse = z.infer<typeof ClusterResponseSchema>;
+export type ClusterDetail = z.infer<typeof ClusterDetailSchema>;
 export type Cluster = z.infer<typeof ClusterSchema>;
 export type Article = z.infer<typeof ArticleSchema>;
 export type Source = z.infer<typeof SourceSchema>;

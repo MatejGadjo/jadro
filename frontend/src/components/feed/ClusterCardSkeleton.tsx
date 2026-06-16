@@ -32,7 +32,7 @@ function HorizontalCardSkeleton() {
 
 export function TopicSectionHeaderSkeleton() {
   return (
-    <div className="flex items-end gap-3 border-b-2 border-foreground pb-3 mb-6">
+    <div className="flex items-end gap-3 border-b-2 border-foreground pb-3">
       <Skeleton className="w-1 rounded-none min-h-10 self-stretch" />
       <div className="space-y-2">
         <Skeleton className="h-9 w-48" />
@@ -42,17 +42,18 @@ export function TopicSectionHeaderSkeleton() {
   )
 }
 
-export default function ClusterCardSkeleton() {
+// Desktop featured-cluster layout: label row + col-span-2 image left + col-span-3 article rows right.
+// Mirrors StoryCluster's featured desktop grid; reused by HomePageSkeleton.
+export function DesktopClusterSkeleton() {
   return (
-    <div className="bg-card border border-border rounded-sm overflow-hidden p-4 md:p-5">
-      {/* Cluster label row — desktop only */}
-      <div className="hidden md:flex items-center gap-3 mb-3">
+    <>
+      {/* Cluster label row */}
+      <div className="flex items-center gap-3 mb-3">
         <Skeleton className="h-4 w-0.5 rounded-none" />
         <Skeleton className="h-3 w-28" />
       </div>
 
-      {/* Desktop: col-span-2 image left + col-span-3 article rows right */}
-      <div className="hidden md:grid md:grid-cols-5 gap-4">
+      <div className="grid grid-cols-5 gap-4">
         <div className="col-span-2 flex flex-col gap-2">
           <Skeleton className="aspect-video w-full rounded-sm" />
           <div className="flex items-center gap-1.5">
@@ -74,6 +75,17 @@ export default function ClusterCardSkeleton() {
           <FeaturedRowSkeleton />
           <FeaturedRowSkeleton />
         </div>
+      </div>
+    </>
+  )
+}
+
+export default function ClusterCardSkeleton() {
+  return (
+    <div className="bg-card border border-border rounded-sm overflow-hidden p-4 md:p-5">
+      {/* Desktop */}
+      <div className="hidden md:block">
+        <DesktopClusterSkeleton />
       </div>
 
       {/* Mobile: featured article + horizontal scroll strip */}

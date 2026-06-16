@@ -10,7 +10,7 @@ func TestLoadTokenizer(t *testing.T) {
 	log, _ := logger.NewLogger()
 	tokenizerPath := "./models/paraphrase-multilingual-MiniLM-L12-v2/tokenizer.json"
 
-	tk, err := LoadTokenizer(tokenizerPath, log)
+	tk, err := loadTokenizer(tokenizerPath, log)
 	if err != nil {
 		t.Skipf("skipping test: tokenizer not available: %v", err)
 		return
@@ -29,14 +29,14 @@ func TestEncode(t *testing.T) {
 	log, _ := logger.NewLogger()
 	tokenizerPath := "./models/paraphrase-multilingual-MiniLM-L12-v2/tokenizer.json"
 
-	tk, err := LoadTokenizer(tokenizerPath, log)
+	tk, err := loadTokenizer(tokenizerPath, log)
 	if err != nil {
 		t.Skipf("skipping test: tokenizer not available: %v", err)
 		return
 	}
 
 	text := "новина за политика"
-	inputIDs, attentionMask, err := tk.Encode(text, 128)
+	inputIDs, attentionMask, err := tk.encode(text, 128)
 
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
@@ -68,13 +68,13 @@ func TestEncode_EmptyText(t *testing.T) {
 	log, _ := logger.NewLogger()
 	tokenizerPath := "./models/paraphrase-multilingual-MiniLM-L12-v2/tokenizer.json"
 
-	tk, err := LoadTokenizer(tokenizerPath, log)
+	tk, err := loadTokenizer(tokenizerPath, log)
 	if err != nil {
 		t.Skipf("skipping test: tokenizer not available: %v", err)
 		return
 	}
 
-	inputIDs, attentionMask, err := tk.Encode("", 128)
+	inputIDs, attentionMask, err := tk.encode("", 128)
 
 	if err != nil {
 		t.Fatalf("expected no error for empty text, got %v", err)
@@ -91,18 +91,23 @@ func TestEncode_EmptyText(t *testing.T) {
 	}
 }
 
+func tokenize(st *sentenceTokenizer, text string) ([]int64, error) {
+	ids, _, err := st.encode(text, st.maxLength)
+	return ids, err
+}
+
 func TestSentenceTokenizer_Tokenize(t *testing.T) {
 	log, _ := logger.NewLogger()
 	tokenizerPath := "./models/paraphrase-multilingual-MiniLM-L12-v2/tokenizer.json"
 
-	tk, err := LoadTokenizer(tokenizerPath, log)
+	tk, err := loadTokenizer(tokenizerPath, log)
 	if err != nil {
 		t.Skipf("skipping test: tokenizer not available: %v", err)
 		return
 	}
 
 	text := "новина за политика"
-	ids, err := tk.Tokenize(text)
+	ids, err := tokenize(tk, text)
 
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)

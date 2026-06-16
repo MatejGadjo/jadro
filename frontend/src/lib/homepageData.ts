@@ -1,14 +1,13 @@
 import type { ClusterResponse, HomepageClusterSection } from '@/api/types'
-import type { MockArticle, MockCluster } from '@/lib/mockData'
+import type { FeedArticle, FeedCluster, TopicArticle, TopicSection } from '@/lib/feedTypes'
 import { mapClusterResponseArticles, toRelativeTime } from '@/lib/clusterArticles'
 import { HOMEPAGE_TOPICS, TOPIC_ITEMS } from '@/lib/topics'
-import type { TopicArticle, TopicSection } from '@/lib/topicMockData'
 
 
 function mapHomepageArticle(
   article: HomepageClusterSection['sources'][number]['articles'][number],
   source: HomepageClusterSection['sources'][number]['source'],
-): MockArticle {
+): FeedArticle {
   return {
     id: article.id,
     source: {
@@ -23,9 +22,9 @@ function mapHomepageArticle(
   }
 }
 
-export function mapFeaturedSectionsToStoryClusters(sections: HomepageClusterSection[]): MockCluster[] {
+export function mapFeaturedSectionsToStoryClusters(sections: HomepageClusterSection[]): FeedCluster[] {
   return sections
-    .map<MockCluster | null>((section) => {
+    .map<FeedCluster | null>((section) => {
       const articles = section.sources
         .map((group) => {
           const leadArticle = group.articles.find((article) => Boolean(article.image_url)) ?? group.articles[0]
@@ -34,7 +33,7 @@ export function mapFeaturedSectionsToStoryClusters(sections: HomepageClusterSect
           }
           return mapHomepageArticle(leadArticle, group.source)
         })
-        .filter((article): article is MockArticle => article !== null)
+        .filter((article): article is FeedArticle => article !== null)
 
       if (articles.length === 0) {
         return null
@@ -59,7 +58,7 @@ export function mapFeaturedSectionsToStoryClusters(sections: HomepageClusterSect
         ...(section.cluster.display_title ? { displayTitle: section.cluster.display_title } : {}),
       }
     })
-    .filter((cluster): cluster is MockCluster => cluster !== null)
+    .filter((cluster): cluster is FeedCluster => cluster !== null)
 }
 
 function normalizeTopicName(name: string): string {
