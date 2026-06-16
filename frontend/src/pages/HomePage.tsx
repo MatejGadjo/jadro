@@ -33,7 +33,7 @@ export default function HomePage() {
               className="text-3xl md:text-4xl font-black text-foreground leading-none"
               style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic' }}
             >
-              Топ приказни
+              Топ вести
             </h2>
             <p
               className="text-xs text-muted-foreground mt-1 uppercase tracking-widest"

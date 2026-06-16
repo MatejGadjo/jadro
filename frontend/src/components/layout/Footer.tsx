@@ -64,7 +64,7 @@ export default function Footer() {
                 <Link
                   key={topic.value}
                   to="/$topic"
-                  params={{ topic: topic.value }}
+                  params={{ topic: topic.id }}
                   className="text-xs text-muted-foreground hover:text-editorial transition-colors duration-150 w-fit"
                   style={{ fontFamily: 'var(--font-mono)' }}
                 >

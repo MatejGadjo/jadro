@@ -8,7 +8,7 @@ interface TopicFeedSectionProps {
 
 export default function TopicFeedSection({ topicName, clusters }: TopicFeedSectionProps) {
   return (
-    <section className="space-y-6">
+    <section className="max-w-4xl mx-auto space-y-6">
       <div className="flex items-end justify-between border-b-2 border-foreground pb-3">
         <div className="flex items-end gap-3">
           <div
@@ -32,7 +32,7 @@ export default function TopicFeedSection({ topicName, clusters }: TopicFeedSecti
         </div>
       </div>
 
-      <div className="max-w-4xl mx-auto space-y-6">
+      <div className="space-y-6">
         {clusters.map((cluster) => (
           <StoryCluster key={cluster.id} cluster={cluster} featured />
         ))}

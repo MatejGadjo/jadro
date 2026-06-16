@@ -62,10 +62,9 @@ export default function FeedPage() {
   return (
     <div className="space-y-6">
       {showSkeleton && (
-        <div className="space-y-6">
+        <div className="max-w-4xl mx-auto space-y-6">
           <TopicSectionHeaderSkeleton />
-          {/* Same width constraint as TopicFeedSection's cluster list */}
-          <div className="max-w-4xl mx-auto space-y-6">
+          <div className="space-y-6">
             <ClusterCardSkeleton />
             <ClusterCardSkeleton />
             <ClusterCardSkeleton />
