@@ -210,7 +210,7 @@ function HorizontalArticleScroll({ articles }: { articles: FeedArticle[] }) {
 
 export default function StoryCluster({ cluster, featured = false, embedded = false }: StoryClusterProps) {
   const [mainArticle, ...otherArticles] = cluster.articles
-  const clusterTitle = cluster.displayTitle || 'Топ приказни'
+  const clusterTitle = cluster.displayTitle || 'Топ вести'
 
   const containerClasses = embedded
     ? ''

@@ -6,7 +6,7 @@ interface FeedCardProps {
 }
 
 export default function FeedCard({ cluster }: FeedCardProps) {
-  const headline = cluster.display_title || 'Топ приказни'
+  const headline = cluster.display_title || 'Топ вести'
 
   return (
     <Link
