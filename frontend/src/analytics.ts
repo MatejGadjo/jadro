@@ -19,12 +19,18 @@ export function initAnalytics(): void {
   window.gtag = function (...args: unknown[]) {
     window.dataLayer.push(args)
   }
+
+  // Cookieless via Consent Mode: analytics runs with no first-party cookie
+  // (sends cookieless pings, no consent banner required), ad signals fully off.
+  window.gtag('consent', 'default', {
+    ad_storage: 'denied',
+    ad_user_data: 'denied',
+    ad_personalization: 'denied',
+    analytics_storage: 'denied',
+  })
   window.gtag('js', new Date())
   window.gtag('config', GA_ID, {
-    storage: 'none',
     anonymize_ip: true,
-    allow_google_signals: false,
-    allow_ad_personalization_signals: false,
   })
 }
 
