@@ -23,13 +23,15 @@ export function initAnalytics(): void {
     window.dataLayer.push(arguments)
   }
 
-  // Cookieless via Consent Mode: analytics runs with no first-party cookie
-  // (sends cookieless pings, no consent banner required), ad signals fully off.
+  // Analytics-only: GA4 uses its first-party `_ga` cookie so hits actually
+  // register (Realtime/DebugView/reports). All advertising signals stay off.
+  // NOTE: analytics_storage 'denied' = cookieless consent-mode pings, which
+  // are modeling-only and never show for a small/low-traffic property.
   window.gtag('consent', 'default', {
     ad_storage: 'denied',
     ad_user_data: 'denied',
     ad_personalization: 'denied',
-    analytics_storage: 'denied',
+    analytics_storage: 'granted',
   })
   window.gtag('js', new Date())
   window.gtag('config', GA_ID, {
