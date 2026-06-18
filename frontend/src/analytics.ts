@@ -16,8 +16,11 @@ export function initAnalytics(): void {
   document.head.appendChild(script)
 
   window.dataLayer = window.dataLayer || []
-  window.gtag = function (...args: unknown[]) {
-    window.dataLayer.push(args)
+  // Must push the `arguments` object (not a spread array) — gtag.js only
+  // recognizes queued commands in that exact shape.
+  window.gtag = function () {
+    // eslint-disable-next-line prefer-rest-params
+    window.dataLayer.push(arguments)
   }
 
   // Cookieless via Consent Mode: analytics runs with no first-party cookie
