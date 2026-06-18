@@ -62,4 +62,7 @@ jobs:
             # contents change. Reload (not restart) so nginx always picks up
             # the latest config with zero dropped connections, even on
             # deploys that only touch nginx/nginx.conf.
-            docker compose exec nginx nginx -s reload
+            # -T disables TTY allocation; over SSH/CI there is no TTY, and
+            # without it `exec` errors ("input device is not a TTY") and the
+            # reload silently never runs.
+            docker compose exec -T nginx nginx -s reload
