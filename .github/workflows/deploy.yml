@@ -57,12 +57,10 @@ jobs:
             git pull origin master
             docker compose up -d --build
             docker image prune -f
-            # nginx.conf is bind-mounted; Compose only recreates a container
-            # when its service definition changes, not when a mounted file's
-            # contents change. Reload (not restart) so nginx always picks up
-            # the latest config with zero dropped connections, even on
-            # deploys that only touch nginx/nginx.conf.
-            # -T disables TTY allocation; over SSH/CI there is no TTY, and
-            # without it `exec` errors ("input device is not a TTY") and the
-            # reload silently never runs.
-            docker compose exec -T nginx nginx -s reload
+            # nginx.conf is a SINGLE-FILE bind mount. `git pull` replaces the
+            # file with a new inode, but the running container stays bound to
+            # the old inode — so `nginx -s reload` (and `restart`) keep reading
+            # stale config. Only recreating the container re-binds the mount to
+            # the current inode. Force-recreate nginx every deploy so config
+            # changes always take effect (~1s downtime).
+            docker compose up -d --force-recreate nginx
