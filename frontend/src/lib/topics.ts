@@ -41,3 +41,15 @@ export function topicLabelFromSlug(slug?: string): string {
   }
   return TOPIC_ITEMS.find((topic) => topic.id === slug)?.label ?? slug
 }
+
+// Maps a backend topic name (Cyrillic `value`/`label`) back to its latin slug
+// so analytics events stay consistent with `topic_select` (which sends the slug).
+// Falls back to the raw input when unknown.
+export function topicSlugFromValue(value?: string): string | undefined {
+  if (!value) {
+    return undefined
+  }
+  return TOPIC_ITEMS.find(
+    (topic) => topic.value === value || topic.label === value,
+  )?.id ?? value
+}

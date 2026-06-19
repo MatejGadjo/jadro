@@ -1,4 +1,5 @@
 import { clearArticleImage } from '@/api/cluster'
+import { trackEvent } from '@/analytics'
 import { SourceAvatar } from '@/components/feed/SourceAvatar'
 import { toRelativeTime } from '@/lib/clusterArticles'
 import type { ClusterResponse } from '@/api/types'
@@ -8,15 +9,18 @@ type ClusterArticle = ClusterResponse['articles'][number]
 export function ClusterArticleItem({
   article,
   displayNumber,
+  topic,
 }: {
   article: ClusterArticle
   displayNumber: number
+  topic?: string
 }) {
   return (
     <a
       href={article.url}
       target="_blank"
       rel="noopener noreferrer"
+      onClick={() => trackEvent('article_click', { source: article.source.name, ...(topic ? { topic } : {}) })}
       className="group flex flex-col overflow-hidden rounded-md border border-border/60 bg-card shadow-sm transition-colors duration-100 hover:bg-accent/30
                  md:flex-row md:items-start md:gap-4 md:rounded-none md:border-0 md:border-t md:bg-transparent md:shadow-none md:-mx-5 md:px-5 md:py-5"
     >
