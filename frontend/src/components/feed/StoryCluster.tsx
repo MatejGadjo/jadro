@@ -4,7 +4,15 @@ import { ArrowRight, Layers } from 'lucide-react'
 import { SourceAvatar } from '@/components/feed/SourceAvatar'
 import { SourceBadge } from '@/components/feed/SourceBadge'
 import { FeaturedArticle } from '@/components/feed/FeaturedArticle'
+import { topicSlugFromValue } from '@/lib/topics'
 import type { FeedCluster, FeedArticle } from '@/lib/feedTypes'
+
+function trackArticleClick(article: FeedArticle, topic?: string) {
+  trackEvent('article_click', {
+    source: article.source.name,
+    ...(topic ? { topic } : {}),
+  })
+}
 
 interface StoryClusterProps {
   cluster: FeedCluster
@@ -12,13 +20,13 @@ interface StoryClusterProps {
   embedded?: boolean
 }
 
-function ArticleRow({ article }: { article: FeedArticle }) {
+function ArticleRow({ article, topic }: { article: FeedArticle; topic?: string }) {
   return (
     <a
       href={article.url}
       target="_blank"
       rel="noopener noreferrer"
-      onClick={() => trackEvent('article_click', { source: article.source.name })}
+      onClick={() => trackArticleClick(article, topic)}
       className="group flex items-start gap-3 py-2.5 border-t border-border/60 first:border-t-0 hover:bg-accent/40 -mx-3 px-3 transition-colors duration-100"
     >
       <SourceAvatar
@@ -54,13 +62,13 @@ function ArticleRow({ article }: { article: FeedArticle }) {
   )
 }
 
-function FeaturedArticleRow({ article, fill = true }: { article: FeedArticle; fill?: boolean }) {
+function FeaturedArticleRow({ article, topic, fill = true }: { article: FeedArticle; topic?: string; fill?: boolean }) {
   return (
     <a
       href={article.url}
       target="_blank"
       rel="noopener noreferrer"
-      onClick={() => trackEvent('article_click', { source: article.source.name })}
+      onClick={() => trackArticleClick(article, topic)}
       className={`group flex flex-col px-3 py-2 border-t border-border/60 first:border-t-0 hover:bg-accent/40 transition-colors duration-100 ${fill ? 'flex-1 min-h-0' : 'min-h-18'}`}
     >
       <div className="flex items-center gap-1.5 mb-1">
@@ -95,13 +103,13 @@ function FeaturedArticleRow({ article, fill = true }: { article: FeedArticle; fi
   )
 }
 
-function CompanionArticle({ article }: { article: FeedArticle }) {
+function CompanionArticle({ article, topic }: { article: FeedArticle; topic?: string }) {
   return (
     <a
       href={article.url}
       target="_blank"
       rel="noopener noreferrer"
-      onClick={() => trackEvent('article_click', { source: article.source.name })}
+      onClick={() => trackArticleClick(article, topic)}
       className="group flex flex-col pl-4 border-l border-border/60 hover:bg-accent/40 transition-colors duration-100 rounded-sm"
     >
       <div className="flex items-center gap-1.5 mb-2">
@@ -153,13 +161,13 @@ function SeeMoreLink({ clusterId }: { clusterId: number | string }) {
   )
 }
 
-function HorizontalArticleCard({ article }: { article: FeedArticle }) {
+function HorizontalArticleCard({ article, topic }: { article: FeedArticle; topic?: string }) {
   return (
     <a
       href={article.url}
       target="_blank"
       rel="noopener noreferrer"
-      onClick={() => trackEvent('article_click', { source: article.source.name })}
+      onClick={() => trackArticleClick(article, topic)}
       className="group flex flex-col w-52 shrink-0 bg-card border border-border rounded-sm p-3 hover:border-editorial/40 transition-colors duration-150"
     >
       <div className="flex items-center gap-1.5 mb-2">
@@ -193,14 +201,14 @@ function HorizontalArticleCard({ article }: { article: FeedArticle }) {
   )
 }
 
-function HorizontalArticleScroll({ articles }: { articles: FeedArticle[] }) {
+function HorizontalArticleScroll({ articles, topic }: { articles: FeedArticle[]; topic?: string }) {
   return (
     <div className="relative -mx-4">
       <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-12 z-10 bg-linear-to-l from-card to-transparent" />
       <div className="overflow-x-auto scrollbar-hide px-4">
         <div className="flex gap-3 pb-1">
           {articles.map((article) => (
-            <HorizontalArticleCard key={article.id} article={article} />
+            <HorizontalArticleCard key={article.id} article={article} topic={topic} />
           ))}
         </div>
       </div>
@@ -211,6 +219,7 @@ function HorizontalArticleScroll({ articles }: { articles: FeedArticle[] }) {
 export default function StoryCluster({ cluster, featured = false, embedded = false }: StoryClusterProps) {
   const [mainArticle, ...otherArticles] = cluster.articles
   const clusterTitle = cluster.displayTitle || 'Топ вести'
+  const topic = topicSlugFromValue(cluster.topic)
 
   const containerClasses = embedded
     ? ''
@@ -248,7 +257,7 @@ export default function StoryCluster({ cluster, featured = false, embedded = fal
             if (count === 0) {
               return (
                 <div className="hidden md:flex flex-col">
-                  <FeaturedArticle article={mainArticle} />
+                  <FeaturedArticle article={mainArticle} topic={topic} />
                   <SeeMoreLink clusterId={cluster.id} />
                 </div>
               )
@@ -258,10 +267,10 @@ export default function StoryCluster({ cluster, featured = false, embedded = fal
               return (
                 <div className="hidden md:grid md:grid-cols-2 gap-4">
                   <div className="flex flex-col">
-                    <FeaturedArticle article={mainArticle} />
+                    <FeaturedArticle article={mainArticle} topic={topic} />
                     <SeeMoreLink clusterId={cluster.id} />
                   </div>
-                  <CompanionArticle article={secondaryArticles[0]} />
+                  <CompanionArticle article={secondaryArticles[0]} topic={topic} />
                 </div>
               )
             }
@@ -269,12 +278,12 @@ export default function StoryCluster({ cluster, featured = false, embedded = fal
             return (
               <div className="hidden md:grid md:grid-cols-5 gap-4">
                 <div className="col-span-2 flex flex-col">
-                  <FeaturedArticle article={mainArticle} />
+                  <FeaturedArticle article={mainArticle} topic={topic} />
                   <SeeMoreLink clusterId={cluster.id} />
                 </div>
                 <div className="col-span-3 flex flex-col border-l border-border/60">
                   {secondaryArticles.map((article) => (
-                    <FeaturedArticleRow key={article.id} article={article} fill={count === 3} />
+                    <FeaturedArticleRow key={article.id} article={article} topic={topic} fill={count === 3} />
                   ))}
                 </div>
               </div>
@@ -283,10 +292,10 @@ export default function StoryCluster({ cluster, featured = false, embedded = fal
 
           {/* Mobile: main article + horizontal scroll strip */}
           <div className="md:hidden">
-            <FeaturedArticle article={mainArticle} />
+            <FeaturedArticle article={mainArticle} topic={topic} />
             {otherArticles.length > 0 && (
               <div className="mt-3">
-                <HorizontalArticleScroll articles={otherArticles.slice(0, 3)} />
+                <HorizontalArticleScroll articles={otherArticles.slice(0, 3)} topic={topic} />
               </div>
             )}
             <SeeMoreLink clusterId={cluster.id} />
@@ -320,7 +329,7 @@ export default function StoryCluster({ cluster, featured = false, embedded = fal
 
         {mainArticle && (
           <div className="mb-1">
-            <a href={mainArticle.url} target="_blank" rel="noopener noreferrer" onClick={() => trackEvent('article_click', { source: mainArticle.source.name })} className="group block">
+            <a href={mainArticle.url} target="_blank" rel="noopener noreferrer" onClick={() => trackArticleClick(mainArticle, topic)} className="group block">
               <div className="flex items-center gap-2 mb-1.5">
                 <SourceBadge article={mainArticle} />
               </div>
@@ -339,12 +348,12 @@ export default function StoryCluster({ cluster, featured = false, embedded = fal
             {/* Desktop: stacked rows */}
             <div className="hidden md:block mt-1">
               {otherArticles.slice(0, 3).map((article) => (
-                <ArticleRow key={article.id} article={article} />
+                <ArticleRow key={article.id} article={article} topic={topic} />
               ))}
             </div>
             {/* Mobile: horizontal scroll strip */}
             <div className="md:hidden mt-3">
-              <HorizontalArticleScroll articles={otherArticles.slice(0, 3)} />
+              <HorizontalArticleScroll articles={otherArticles.slice(0, 3)} topic={topic} />
             </div>
           </>
         )}

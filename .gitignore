@@ -2,3 +2,4 @@
 .env.local
 docker-compose.override.yml
 PRODUCTION.md
+GOOGLE_ANALYTICS.md

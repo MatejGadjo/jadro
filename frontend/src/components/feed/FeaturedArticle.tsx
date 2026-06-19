@@ -3,13 +3,13 @@ import { trackEvent } from '@/analytics'
 import { SourceAvatar } from '@/components/feed/SourceAvatar'
 import type { FeedArticle } from '@/lib/feedTypes'
 
-export function FeaturedArticle({ article }: { article: FeedArticle }) {
+export function FeaturedArticle({ article, topic }: { article: FeedArticle; topic?: string }) {
   return (
     <a
       href={article.url}
       target="_blank"
       rel="noopener noreferrer"
-      onClick={() => trackEvent('article_click', { source: article.source.name })}
+      onClick={() => trackEvent('article_click', { source: article.source.name, ...(topic ? { topic } : {}) })}
       className="group flex flex-col h-full"
     >
       {article.imageUrl && (

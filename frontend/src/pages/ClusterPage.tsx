@@ -4,6 +4,7 @@ import { useCluster } from '@/hooks/useCluster'
 import { toRelativeTime } from '@/lib/clusterArticles'
 import { ClusterArticleItem } from '@/components/cluster/ClusterArticleItem'
 import { ClusterPageSkeleton } from '@/components/cluster/ClusterPageSkeleton'
+import { topicSlugFromValue } from '@/lib/topics'
 
 export default function ClusterPage() {
   const { clusterId } = useParams({ strict: false })
@@ -33,6 +34,7 @@ export default function ClusterPage() {
 
   const { cluster, articles } = data
   const clusterTitle = cluster.display_title || cluster.headline || 'Главни Вести'
+  const topicSlug = topicSlugFromValue(cluster.topic)
 
   return (
     <div className="mx-auto max-w-272">
@@ -104,6 +106,7 @@ export default function ClusterPage() {
               key={article.id}
               article={article}
               displayNumber={i + 1}
+              topic={topicSlug}
             />
           ))}
         </div>
