@@ -51,15 +51,15 @@ export default function HomePage() {
 
               {error && (
                 <div className="p-4 text-sm text-destructive">
-                  Неуспешно вчитување на водечки приказни.
+                  Неуспешно вчитување на водечки вести.
                 </div>
               )}
 
               {!isLoading && !error && featuredClusters.length === 0 && (
                 <EmptyState
                   icon={Newspaper}
-                  heading="Нема водечки приказни"
-                  subtext="Моментално нема достапни водечки приказни."
+                  heading="Нема водечки вести"
+                  subtext="Моментално нема достапни водечки вести."
                 />
               )}
 
