@@ -2,7 +2,7 @@
 @import "tw-animate-css";
 
 :root {
-  --font-sans: "DM Sans", "Segoe UI", Arial, Helvetica, sans-serif;
+  --font-sans: "Inter", "Segoe UI", Arial, Helvetica, sans-serif;
   --font-serif: "Playfair Display", Georgia, "Times New Roman", serif;
   --font-mono: "DM Mono", "Courier New", monospace;
   line-height: 1.5;
@@ -159,7 +159,7 @@ body {
   min-height: 100vh;
   overflow-x: hidden;
   font-family: var(--font-sans);
-  font-size: 15px;
+  font-size: 16px;
 }
 
 h1,
