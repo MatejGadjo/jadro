@@ -25,7 +25,10 @@ function ArticleItemContent({ article }: { article: TopicArticle }) {
         </div>
 
         {/* Title */}
-        <h4 className="text-sm font-normal text-foreground leading-snug mb-2 group-hover:text-primary transition-colors line-clamp-2">
+        <h4
+          className="text-sm font-semibold text-foreground leading-snug mb-2 group-hover:text-primary transition-colors line-clamp-2"
+          style={{ fontFamily: 'var(--font-sans)' }}
+        >
           {article.title}
         </h4>
 
