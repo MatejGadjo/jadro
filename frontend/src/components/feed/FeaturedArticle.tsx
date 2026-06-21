@@ -40,7 +40,7 @@ export function FeaturedArticle({ article, topic }: { article: FeedArticle; topi
 
       <h3
         className="text-base font-bold text-foreground leading-snug group-hover:text-editorial transition-colors duration-150 flex-1"
-        style={{ fontFamily: 'var(--font-serif)' }}
+        style={{ fontFamily: 'var(--font-sans)' }}
       >
         {article.title}
       </h3>
