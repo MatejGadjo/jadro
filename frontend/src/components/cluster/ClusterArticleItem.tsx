@@ -73,7 +73,7 @@ export function ClusterArticleItem({
 
         <h3
           className="line-clamp-2 text-base font-bold leading-snug text-foreground transition-colors duration-150 group-hover:text-editorial md:text-[1.05rem]"
-          style={{ fontFamily: 'var(--font-serif)' }}
+          style={{ fontFamily: 'var(--font-sans)' }}
         >
           {article.title}
         </h3>

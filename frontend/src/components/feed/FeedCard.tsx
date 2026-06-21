@@ -19,8 +19,8 @@ export default function FeedCard({ cluster }: FeedCardProps) {
         <div className="w-1 flex-shrink-0 bg-border group-hover:bg-editorial transition-colors duration-150" />
         <div className="flex-1 px-4 py-3">
           <h2
-            className="text-lg font-bold text-foreground leading-snug group-hover:text-editorial transition-colors duration-150"
-            style={{ fontFamily: 'var(--font-serif)' }}
+            className="text-lg md:text-xl font-bold text-foreground leading-snug group-hover:text-editorial transition-colors duration-150"
+            style={{ fontFamily: 'var(--font-sans)' }}
           >
             {headline}
           </h2>

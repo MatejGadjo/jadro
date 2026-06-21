@@ -53,7 +53,7 @@ function ArticleRow({ article, topic }: { article: FeedArticle; topic?: string }
         </div>
         <h4
           className="text-sm font-semibold text-foreground leading-snug line-clamp-2 group-hover:text-editorial transition-colors duration-150"
-          style={{ fontFamily: 'var(--font-serif)' }}
+          style={{ fontFamily: 'var(--font-sans)' }}
         >
           {article.title}
         </h4>
@@ -86,7 +86,7 @@ function FeaturedArticleRow({ article, topic, fill = true }: { article: FeedArti
       </div>
       <h4
         className={`text-sm font-semibold text-foreground leading-snug group-hover:text-editorial transition-colors duration-150 ${fill ? 'line-clamp-2 flex-1' : 'line-clamp-3'}`}
-        style={{ fontFamily: 'var(--font-serif)' }}
+        style={{ fontFamily: 'var(--font-sans)' }}
       >
         {article.title}
       </h4>
@@ -127,7 +127,7 @@ function CompanionArticle({ article, topic }: { article: FeedArticle; topic?: st
       </div>
       <h4
         className="text-base font-bold text-foreground leading-snug line-clamp-4 group-hover:text-editorial transition-colors duration-150"
-        style={{ fontFamily: 'var(--font-serif)' }}
+        style={{ fontFamily: 'var(--font-sans)' }}
       >
         {article.title}
       </h4>
@@ -185,7 +185,7 @@ function HorizontalArticleCard({ article, topic }: { article: FeedArticle; topic
       </div>
       <h4
         className="text-sm font-semibold text-foreground leading-snug line-clamp-3 group-hover:text-editorial transition-colors duration-150 flex-1"
-        style={{ fontFamily: 'var(--font-serif)' }}
+        style={{ fontFamily: 'var(--font-sans)' }}
       >
         {article.title}
       </h4>
@@ -334,8 +334,8 @@ export default function StoryCluster({ cluster, featured = false, embedded = fal
                 <SourceBadge article={mainArticle} />
               </div>
               <h3
-                className="text-lg font-bold text-foreground leading-tight group-hover:text-editorial transition-colors duration-150"
-                style={{ fontFamily: 'var(--font-serif)' }}
+                className="text-lg md:text-xl font-bold text-foreground leading-tight group-hover:text-editorial transition-colors duration-150"
+                style={{ fontFamily: 'var(--font-sans)' }}
               >
                 {mainArticle.title}
               </h3>
