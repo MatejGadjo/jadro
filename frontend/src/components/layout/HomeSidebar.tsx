@@ -38,7 +38,7 @@ function ArticleRow({ article }: { article: LatestArticle }) {
       {/* Title */}
       <p
         className="text-sm font-semibold text-foreground leading-snug line-clamp-2 group-hover:text-editorial transition-colors duration-100 mt-0.5 mb-1"
-        style={{ fontFamily: 'var(--font-serif)' }}
+        style={{ fontFamily: 'var(--font-sans)' }}
       >
         {article.title}
       </p>

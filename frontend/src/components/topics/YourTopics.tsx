@@ -11,7 +11,10 @@ export default function YourTopics({ sections }: YourTopicsProps) {
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>
-          <h2 className="text-3xl font-normal text-foreground mb-2">
+          <h2
+            className="text-3xl md:text-4xl font-black text-foreground leading-none mb-2"
+            style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic' }}
+          >
             Теми
           </h2>
         </div>
