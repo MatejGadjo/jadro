@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="mk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{ .Title }}</title>
+<meta name="description" content="{{ .Description }}">
+<link rel="canonical" href="{{ .Canonical }}">
+<meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Јадро">
+<meta property="og:title" content="{{ .Title }}">
+<meta property="og:description" content="{{ .Description }}">
+<meta property="og:url" content="{{ .Canonical }}">
+<meta property="og:image" content="{{ .OGImage }}">
+<meta property="og:locale" content="mk_MK">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="{{ .Title }}">
+<meta name="twitter:description" content="{{ .Description }}">
+<meta name="twitter:image" content="{{ .OGImage }}">
+</head>
+<body>
+<header><a href="https://jadro.mk/">Јадро</a></header>
+<main>
+<h1>{{ .Heading }}</h1>
+{{ if .Items }}
+<ul>
+{{ range .Items }}
+<li><h2><a href="{{ .URL }}">{{ .Headline }}</a></h2>{{ if .Summary }}<p>{{ .Summary }}</p>{{ end }}</li>
+{{ end }}
+</ul>
+{{ else }}
+<p>Нема достапни вести во моментов.</p>
+{{ end }}
+</main>
+</body>
+</html>

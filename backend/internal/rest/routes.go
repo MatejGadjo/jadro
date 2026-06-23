@@ -12,6 +12,7 @@ func RegisterRoutes(
 	feed *handlers.FeedHandler,
 	health *handlers.HealthHandler,
 	cluster *handlers.ClusterHandler,
+	prerender *handlers.PrerenderHandler,
 	rl *middleware.RateLimiter,
 ) {
 	api := r.Group("/api")
@@ -21,4 +22,10 @@ func RegisterRoutes(
 	api.GET("/articles/latest", rl.Limit(redis_rate.PerMinute(60)), cluster.GetLatestArticles)
 	api.GET("/clusters/:id", rl.Limit(redis_rate.PerMinute(60)), cluster.GetCluster)
 	api.PATCH("/articles/:id/clear-image", rl.LimitStrict(redis_rate.PerMinute(10)), cluster.PatchClearImage)
+
+	// Crawler-only server-rendered pages. nginx forwards bot requests for page
+	// routes here as /_prerender<original-path>; humans are served the SPA and
+	// never reach this. Catch-all so /, /cluster/:id and /:topic share one route
+	// without httprouter static/param conflicts.
+	r.GET("/_prerender/*path", rl.Limit(redis_rate.PerMinute(60)), prerender.Render)
 }
