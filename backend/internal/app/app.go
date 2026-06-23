@@ -95,6 +95,7 @@ func Initialize() *fx.App {
 		fx.Provide(handlers.NewFeedHandler),
 		fx.Provide(handlers.NewHealthHandler),
 		fx.Provide(handlers.NewClusterHandler),
+		fx.Provide(handlers.NewPrerenderHandler),
 
 		// http
 		fx.Provide(middleware.NewRateLimiter),

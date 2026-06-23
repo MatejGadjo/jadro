@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="mk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{ .Title }}</title>
+<meta name="description" content="{{ .Description }}">
+<link rel="canonical" href="{{ .Canonical }}">
+<meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="Јадро">
+<meta property="og:title" content="{{ .Headline }}">
+<meta property="og:description" content="{{ .Description }}">
+<meta property="og:url" content="{{ .Canonical }}">
+<meta property="og:image" content="{{ .OGImage }}">
+<meta property="og:locale" content="mk_MK">
+{{ if .Published }}<meta property="article:published_time" content="{{ .Published }}">{{ end }}
+{{ if .Modified }}<meta property="article:modified_time" content="{{ .Modified }}">{{ end }}
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="{{ .Headline }}">
+<meta name="twitter:description" content="{{ .Description }}">
+<meta name="twitter:image" content="{{ .OGImage }}">
+<script type="application/ld+json">{{ .JSONLD }}</script>
+</head>
+<body>
+<header><a href="https://jadro.mk/">Јадро</a></header>
+<main>
+<article>
+<h1>{{ .Headline }}</h1>
+{{ if .Description }}<p>{{ .Description }}</p>{{ end }}
+{{ if .Sources }}
+<h2>Извори кои ја пренесоа веста</h2>
+<ul>
+{{ range .Sources }}<li><a href="{{ .URL }}" rel="nofollow noopener" target="_blank">{{ .Name }}</a></li>
+{{ end }}
+</ul>
+{{ end }}
+</article>
+</main>
+<footer><a href="https://jadro.mk/">Сите вести на Јадро</a></footer>
+</body>
+</html>
