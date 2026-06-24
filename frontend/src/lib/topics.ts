@@ -28,6 +28,15 @@ export const HOMEPAGE_TOPICS = TOPIC_ITEMS.filter((topic) => (
 
 export type TopicSlug = (typeof TOPIC_ITEMS)[number]['id']
 
+const TOPIC_SLUG_SET = new Set<string>(TOPIC_ITEMS.map((topic) => topic.id))
+
+// isValidTopicSlug reports whether a URL segment maps to a real topic, so the
+// `/$topic` route can reject unknown slugs (e.g. /random) with a 404 instead of
+// rendering an empty feed (soft-404).
+export function isValidTopicSlug(slug?: string): boolean {
+  return slug !== undefined && TOPIC_SLUG_SET.has(slug)
+}
+
 export function topicValueFromSlug(slug?: string): string | undefined {
   if (!slug) {
     return undefined
