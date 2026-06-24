@@ -8,6 +8,7 @@ import (
 
 type FeedServicer interface {
 	GetFeed(ctx context.Context, topic *string, page int) ([]byte, error)
+	Sitemap(ctx context.Context) ([]byte, error)
 	WarmCache(ctx context.Context)
 }
 

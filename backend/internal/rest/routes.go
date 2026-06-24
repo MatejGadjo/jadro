@@ -28,4 +28,8 @@ func RegisterRoutes(
 	// never reach this. Catch-all so /, /cluster/:id and /:topic share one route
 	// without httprouter static/param conflicts.
 	r.GET("/_prerender/*path", rl.Limit(redis_rate.PerMinute(60)), prerender.Render)
+
+	// Dynamic XML sitemap (homepage + topics + recent clusters). nginx routes
+	// /sitemap.xml here (exact-match location); referenced by robots.txt.
+	r.GET("/sitemap.xml", rl.Limit(redis_rate.PerMinute(60)), feed.GetSitemap)
 }

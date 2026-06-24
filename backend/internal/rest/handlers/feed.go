@@ -44,3 +44,14 @@ func (h *FeedHandler) GetFeed(c *gin.Context) {
 	}
 	c.Data(http.StatusOK, "application/json; charset=utf-8", raw)
 }
+
+// GetSitemap serves the dynamic XML sitemap (homepage + topics + recent
+// clusters). nginx routes /sitemap.xml here; crawlers fetch it from robots.txt.
+func (h *FeedHandler) GetSitemap(c *gin.Context) {
+	raw, err := h.svc.Sitemap(c.Request.Context())
+	if err != nil {
+		c.Status(http.StatusInternalServerError)
+		return
+	}
+	c.Data(http.StatusOK, "application/xml; charset=utf-8", raw)
+}
