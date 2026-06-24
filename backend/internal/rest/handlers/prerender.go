@@ -24,6 +24,15 @@ const metaDescriptionMax = 160
 //go:embed templates/*.gohtml
 var prerenderTemplates embed.FS
 
+// staticPaths are real non-topic SPA routes that must render a valid 200 page
+// rather than a 404 when they hit the topic branch. Mirrors the static routes
+// in frontend src/routes.tsx.
+var staticPaths = map[string]struct{}{
+	"about":   {},
+	"privacy": {},
+	"terms":   {},
+}
+
 // topicSlugToValue maps the latin URL slug to the Cyrillic topic value the feed
 // service expects. Mirrors frontend src/lib/topics.ts (TOPIC_ITEMS).
 var topicSlugToValue = map[string]string{
@@ -136,6 +145,13 @@ type listView struct {
 	Items       []listItem
 }
 
+type notFoundView struct {
+	Title       string
+	Heading     string
+	Description string
+	Canonical   string
+}
+
 // Render is the single catch-all entry point. nginx forwards the original page
 // path appended to /_prerender, so c.Param("path") is e.g. "/cluster/123",
 // "/sport", or "/". Unknown paths fall back to a generic site page (always
@@ -155,20 +171,22 @@ func (h *PrerenderHandler) Render(c *gin.Context) {
 func (h *PrerenderHandler) renderCluster(c *gin.Context, idStr string) {
 	id, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil || id <= 0 {
-		h.renderFallback(c)
+		h.renderNotFound(c)
 		return
 	}
 
 	raw, status, err := h.cluster.GetCluster(c.Request.Context(), id)
 	if err != nil || status != http.StatusOK {
-		h.renderFallback(c)
+		// A missing cluster must return 404 so Google doesn't index an empty
+		// page; a backend error also has no content to render.
+		h.renderNotFound(c)
 		return
 	}
 
 	var resp prClusterResponse
 	if err := json.Unmarshal(raw, &resp); err != nil {
 		h.log.Warnw("prerender: cluster unmarshal failed", "cluster_id", id, "error", err)
-		h.renderFallback(c)
+		h.renderNotFound(c)
 		return
 	}
 
@@ -201,14 +219,20 @@ func (h *PrerenderHandler) renderCluster(c *gin.Context, idStr string) {
 		Sources:     sources,
 		JSONLD:      newsArticleJSONLD(cl, canonical, ogImage, citations),
 	}
-	h.execute(c, "cluster.gohtml", view)
+	h.execute(c, http.StatusOK, "cluster.gohtml", view)
 }
 
 func (h *PrerenderHandler) renderTopic(c *gin.Context, slug string) {
 	value, ok := topicSlugToValue[strings.ToLower(slug)]
 	if !ok {
-		// not a known topic (e.g. /about) — generic site page is fine.
-		h.renderFallback(c)
+		if _, isStatic := staticPaths[strings.ToLower(slug)]; isStatic {
+			// Real non-topic SPA page (e.g. /about) — serve a valid 200 page.
+			h.renderFallback(c)
+			return
+		}
+		// Unknown path — return a real 404 so crawlers don't index an empty SPA
+		// route (soft-404).
+		h.renderNotFound(c)
 		return
 	}
 
@@ -223,7 +247,7 @@ func (h *PrerenderHandler) renderTopic(c *gin.Context, slug string) {
 		"Најнови вести од категоријата "+value+" на Јадро — собрани од сите македонски извори.",
 		canonicalBaseURL+"/"+slug,
 	)
-	h.execute(c, "list.gohtml", view)
+	h.execute(c, http.StatusOK, "list.gohtml", view)
 }
 
 func (h *PrerenderHandler) renderHome(c *gin.Context) {
@@ -238,7 +262,7 @@ func (h *PrerenderHandler) renderHome(c *gin.Context) {
 		"Најважните македонски вести од сите извори на едно место, без хаос.",
 		canonicalBaseURL+"/",
 	)
-	h.execute(c, "list.gohtml", view)
+	h.execute(c, http.StatusOK, "list.gohtml", view)
 }
 
 func (h *PrerenderHandler) feedToList(raw []byte, title, heading, description, canonical string) listView {
@@ -274,8 +298,9 @@ func (h *PrerenderHandler) feedToList(raw []byte, title, heading, description, c
 	}
 }
 
-// renderFallback serves a minimal valid page for unknown/errored routes so a
-// crawler always gets well-formed HTML pointing back to the homepage.
+// renderFallback serves a minimal valid 200 page for known-but-errored routes
+// (e.g. /about, or a topic whose feed query failed) so a crawler always gets
+// well-formed HTML pointing back to the homepage.
 func (h *PrerenderHandler) renderFallback(c *gin.Context) {
 	view := listView{
 		Title:       "Јадро — Македонски Новинарски Агрегатор",
@@ -285,13 +310,28 @@ func (h *PrerenderHandler) renderFallback(c *gin.Context) {
 		OGImage:     defaultOGImage,
 		Items:       nil,
 	}
-	h.execute(c, "list.gohtml", view)
+	h.execute(c, http.StatusOK, "list.gohtml", view)
 }
 
-func (h *PrerenderHandler) execute(c *gin.Context, name string, data any) {
+// renderNotFound serves the branded 404 page with a real HTTP 404 status, so
+// crawlers don't index nonexistent paths (missing clusters, unknown slugs). The
+// template is noindex as a second signal.
+func (h *PrerenderHandler) renderNotFound(c *gin.Context) {
+	view := notFoundView{
+		Title:       "Страницата не постои — Јадро",
+		Heading:     "404",
+		Description: "Страницата што ја баравте не постои или е преместена.",
+		Canonical:   canonicalBaseURL + "/",
+	}
+	h.execute(c, http.StatusNotFound, "notfound.gohtml", view)
+}
+
+func (h *PrerenderHandler) execute(c *gin.Context, status int, name string, data any) {
 	c.Header("Content-Type", "text/html; charset=utf-8")
+	c.Status(status)
 	if err := h.tmpl.ExecuteTemplate(c.Writer, name, data); err != nil {
 		h.log.Errorw("prerender: template execute failed", "template", name, "error", err)
+		// Best effort — only takes effect if nothing has been written yet.
 		c.Status(http.StatusInternalServerError)
 	}
 }

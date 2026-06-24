@@ -1,18 +1,36 @@
 import { useParams } from '@tanstack/react-router'
+import axios from 'axios'
 import { Clock3, Newspaper } from 'lucide-react'
 import { useCluster } from '@/hooks/useCluster'
 import { toRelativeTime } from '@/lib/clusterArticles'
 import { ClusterArticleItem } from '@/components/cluster/ClusterArticleItem'
 import { ClusterPageSkeleton } from '@/components/cluster/ClusterPageSkeleton'
+import { NotFound } from '@/components/NotFound'
 import { topicSlugFromValue } from '@/lib/topics'
 
 export default function ClusterPage() {
   const { clusterId } = useParams({ strict: false })
+
+  // A non-numeric id (e.g. /cluster/abc) can never resolve — show the 404 page
+  // without firing a request.
+  if (clusterId === undefined || !Number.isInteger(Number(clusterId))) {
+    return <NotFound title="Веста не постои" />
+  }
+
+  return <ClusterPageContent clusterId={clusterId} />
+}
+
+function ClusterPageContent({ clusterId }: { clusterId: string }) {
   const { data, isLoading, error } = useCluster(clusterId)
 
   if (isLoading) return <ClusterPageSkeleton />
 
   if (error) {
+    // A missing cluster (deleted/expired or never existed) is a 404, not an
+    // error — show the branded 404. Real failures keep the error message.
+    if (axios.isAxiosError(error) && error.response?.status === 404) {
+      return <NotFound title="Веста не постои" />
+    }
     return (
       <div className="mx-auto max-w-272 py-12 text-center">
         <p className="text-sm text-destructive">
@@ -23,13 +41,7 @@ export default function ClusterPage() {
   }
 
   if (!data) {
-    return (
-      <div className="mx-auto max-w-272 py-12 text-center">
-        <p className="italic text-muted-foreground" style={{ fontFamily: 'var(--font-serif)' }}>
-          Нема достапни податоци за оваа група.
-        </p>
-      </div>
-    )
+    return <NotFound title="Веста не постои" />
   }
 
   const { cluster, articles } = data
@@ -53,8 +65,17 @@ export default function ClusterPage() {
               Целосна покриеност · {articles.length} извори
             </div>
             <h1
-              className="text-base font-black leading-snug text-foreground md:text-4xl md:leading-tight"
-              style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic' }}
+              className="font-black text-foreground"
+              style={{
+                fontFamily: 'var(--font-serif)',
+                fontStyle: 'italic',
+                // Inline size overrides the global `h1 { font-size: 2.8em }` rule
+                // in index.css (unlayered → beats Tailwind utilities). clamp()
+                // scales the headline down on mobile while keeping the large
+                // size on wide desktops.
+                fontSize: 'clamp(1.5rem, 5.5vw, 2.8rem)',
+                lineHeight: 1.15,
+              }}
             >
               {clusterTitle}
             </h1>
@@ -65,7 +86,7 @@ export default function ClusterPage() {
       {/* Summary + meta pills — stacked on mobile, side-by-side on desktop */}
       <div className="mb-4 flex flex-col gap-4 md:mb-8 md:flex-row md:flex-wrap md:items-start">
         {cluster.summary && (
-          <p className="flex-1 border-l-2 border-editorial/40 pl-4 text-base leading-7 text-muted-foreground line-clamp-3 md:line-clamp-none md:min-w-50">
+          <p className="flex-1 border-l-2 border-editorial/40 pl-4 text-sm leading-6 text-muted-foreground line-clamp-3 md:text-base md:leading-7 md:line-clamp-none md:min-w-50">
             {cluster.summary}
           </p>
         )}

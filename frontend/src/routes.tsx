@@ -1,4 +1,4 @@
-import { createRootRoute, createRoute, Outlet } from '@tanstack/react-router'
+import { createRootRoute, createRoute, Outlet, useParams } from '@tanstack/react-router'
 import HomePage from './pages/HomePage'
 import FeedPage from './pages/FeedPage'
 import ClusterPage from './pages/ClusterPage'
@@ -6,6 +6,8 @@ import AboutPage from './pages/AboutPage'
 import PrivacyPage from './pages/PrivacyPage'
 import TermsPage from './pages/TermsPage'
 import MainLayout from './components/layout/MainLayout'
+import { NotFound } from './components/NotFound'
+import { isValidTopicSlug } from './lib/topics'
 
 // Root route
 const rootRoute = createRootRoute()
@@ -19,6 +21,9 @@ const layoutRoute = createRoute({
       <Outlet />
     </MainLayout>
   ),
+  // Renders the branded 404 (inside MainLayout) for unmatched paths and any
+  // `notFound()` thrown by a child route.
+  notFoundComponent: () => <NotFound />,
 })
 
 // Index route - shows HomePage
@@ -32,8 +37,22 @@ const indexRoute = createRoute({
 const topicRoute = createRoute({
   getParentRoute: () => layoutRoute,
   path: '/$topic',
-  component: FeedPage,
+  component: TopicRoute,
 })
+
+// TopicRoute renders the branded 404 for unknown slugs (e.g. /sss, /hronikasss)
+// instead of querying the feed for an invalid topic and rendering an empty page
+// (soft-404). The check is done in the component — rendering NotFound directly
+// is reliable, unlike a notFound() thrown from beforeLoad which TanStack renders
+// against the matched route and here left the page blank. Validates against the
+// local topic list only — no remote fetch.
+function TopicRoute() {
+  const { topic } = useParams({ strict: false })
+  if (!isValidTopicSlug(topic)) {
+    return <NotFound />
+  }
+  return <FeedPage />
+}
 
 // Cluster route - /cluster/$clusterId
 const clusterRoute = createRoute({
