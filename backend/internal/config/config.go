@@ -19,6 +19,7 @@ type Config struct {
 	Jobs     JobsConfig
 	Cache    CacheConfig
 	Security SecurityConfig
+	Push     PushConfig
 }
 
 type DBConfig struct {
@@ -46,6 +47,23 @@ type JobsConfig struct {
 	IngestCron           string
 	CleanupCron          string
 	CleanupRetentionDays int
+}
+
+// PushConfig holds Web Push (VAPID) settings. Push is optional: when the keys
+// are empty the daily send job and the subscribe endpoints are disabled,
+// mirroring the graceful-degradation approach used for ONNX embeddings.
+type PushConfig struct {
+	VAPIDPublic  string
+	VAPIDPrivate string
+	VAPIDSubject string
+	Cron         string
+	Timezone     string
+	MinSources   int
+}
+
+// Enabled reports whether Web Push is configured (both VAPID keys present).
+func (p PushConfig) Enabled() bool {
+	return p.VAPIDPublic != "" && p.VAPIDPrivate != ""
 }
 
 type CacheConfig struct {
@@ -93,6 +111,14 @@ func NewConfig() (*Config, error) {
 		Security: SecurityConfig{
 			AllowedOrigins: splitCommaEnv("ALLOWED_ORIGINS"),
 		},
+		Push: PushConfig{
+			VAPIDPublic:  os.Getenv("VAPID_PUBLIC_KEY"),
+			VAPIDPrivate: os.Getenv("VAPID_PRIVATE_KEY"),
+			VAPIDSubject: getenvDefault("VAPID_SUBJECT", "mailto:kontakt@jadro.mk"),
+			Cron:         getenvDefault("PUSH_CRON", "0 9 * * *"),
+			Timezone:     getenvDefault("PUSH_TIMEZONE", "Europe/Skopje"),
+			MinSources:   int(int32FromEnvDefault("PUSH_MIN_SOURCES", 3)),
+		},
 	}
 
 	if c.DB.URL == "" {
@@ -105,6 +131,14 @@ func NewConfig() (*Config, error) {
 
 	if c.Jobs.CleanupRetentionDays < 1 {
 		c.Jobs.CleanupRetentionDays = 1
+	}
+
+	if c.Push.MinSources < 1 {
+		c.Push.MinSources = 1
+	}
+
+	if c.Env == "production" && !c.Push.Enabled() {
+		log.Printf("warning: VAPID keys not set — Web Push notifications disabled")
 	}
 
 	return c, nil

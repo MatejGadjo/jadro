@@ -3,6 +3,8 @@ import type { ReactNode } from 'react'
 import { useRouterState } from '@tanstack/react-router'
 import Header from './Header'
 import Footer from './Footer'
+import PushPromptBanner from '@/components/push/PushPromptBanner'
+import IosInstallBanner from '@/components/push/IosInstallBanner'
 
 interface MainLayoutProps {
   children: ReactNode
@@ -33,6 +35,9 @@ export default function MainLayout({ children }: MainLayoutProps) {
       </div>
 
       <Footer />
+
+      <PushPromptBanner />
+      <IosInstallBanner />
     </div>
   )
 }

@@ -60,6 +60,12 @@ Correct workflow for any SQL change:
 | `INGEST_CRON` | `*/15 * * * *` | In-process ingest schedule |
 | `CLEANUP_CRON` | `0 3 * * *` | In-process cleanup schedule |
 | `CLEANUP_RETENTION_DAYS` | `3` | |
+| `VAPID_PUBLIC_KEY` | — | Web Push; empty = push disabled. Generate via `make vapid` |
+| `VAPID_PRIVATE_KEY` | — | Web Push; empty = push disabled |
+| `VAPID_SUBJECT` | `mailto:kontakt@jadro.mk` | VAPID JWT `sub` claim |
+| `PUSH_CRON` | `0 9 * * *` | Daily push schedule (in `PUSH_TIMEZONE`) |
+| `PUSH_TIMEZONE` | `Europe/Skopje` | TZ for `PUSH_CRON` (per-entry `CRON_TZ`) |
+| `PUSH_MIN_SOURCES` | `3` | Min sources a cluster needs to be pushed |
 
 ## API contract
 
@@ -69,6 +75,9 @@ Correct workflow for any SQL change:
 - `GET /api/articles/latest` — latest articles (60 req/min)
 - `GET /api/clusters/:id` — cluster detail with articles (60 req/min)
 - `PATCH /api/articles/:id/clear-image` — clear article image (20 req/min)
+- `GET /api/push/config` — VAPID public key (60 req/min); 404 when push disabled
+- `POST /api/push/subscribe` — store a browser subscription (20 req/min, fail-closed)
+- `POST /api/push/unsubscribe` — remove a subscription (20 req/min, fail-closed)
 
 There are no internal/admin HTTP routes; ingest and cleanup run on an in-process cron.
 
