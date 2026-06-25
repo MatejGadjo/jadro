@@ -1,5 +1,6 @@
 import { Link } from '@tanstack/react-router'
 import { TOPIC_ITEMS } from '@/lib/topics'
+import PushBell from '@/components/push/PushBell'
 
 export default function Footer() {
   const currentYear = new Date().getFullYear()
@@ -33,6 +34,7 @@ export default function Footer() {
             >
               Агрегатор на македонски вести. Повеќе извори, една слика.
             </p>
+            <PushBell showLabel className="text-xs text-muted-foreground" />
           </div>
 
           {/* Navigation column */}
@@ -77,9 +79,9 @@ export default function Footer() {
         </div>
       </div>
 
-      {/* ── Mobile: dateline strip — everything on one scrollable line ── */}
-      <div className="sm:hidden overflow-x-auto scrollbar-hide">
-        <div className="flex items-center gap-0 px-4 py-3 whitespace-nowrap w-max min-w-full justify-center">
+      {/* ── Mobile: dateline strip — centered, wraps instead of scrolling ── */}
+      <div className="sm:hidden">
+        <div className="flex flex-wrap items-center justify-center gap-0 px-4 py-3">
           <Link to="/" className="group flex items-baseline gap-0.5 shrink-0 pr-3">
             <span
               className="text-base font-black text-foreground group-hover:text-editorial transition-colors duration-150 leading-none"
@@ -112,11 +114,6 @@ export default function Footer() {
               </Link>
             </span>
           ))}
-
-          <span className="text-[10px] text-muted-foreground/40 px-2" style={{ fontFamily: 'var(--font-mono)' }}>·</span>
-          <span className="text-[10px] text-muted-foreground/50" style={{ fontFamily: 'var(--font-mono)' }}>
-            © {currentYear}
-          </span>
         </div>
       </div>
 

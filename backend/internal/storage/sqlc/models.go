@@ -113,6 +113,21 @@ type ClusterVector struct {
 	UpdatedAt    pgtype.Timestamptz
 }
 
+type PushSend struct {
+	ID        int32
+	ClusterID pgtype.Int8
+	SentAt    pgtype.Timestamptz
+}
+
+type PushSubscription struct {
+	ID         int32
+	Endpoint   string
+	P256dh     string
+	Auth       string
+	CreatedAt  pgtype.Timestamptz
+	LastSentAt pgtype.Timestamptz
+}
+
 type Source struct {
 	ID              int32
 	Name            string

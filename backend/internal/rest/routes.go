@@ -13,6 +13,7 @@ func RegisterRoutes(
 	health *handlers.HealthHandler,
 	cluster *handlers.ClusterHandler,
 	prerender *handlers.PrerenderHandler,
+	push *handlers.PushHandler,
 	rl *middleware.RateLimiter,
 ) {
 	api := r.Group("/api")
@@ -22,6 +23,12 @@ func RegisterRoutes(
 	api.GET("/articles/latest", rl.Limit(redis_rate.PerMinute(60)), cluster.GetLatestArticles)
 	api.GET("/clusters/:id", rl.Limit(redis_rate.PerMinute(60)), cluster.GetCluster)
 	api.PATCH("/articles/:id/clear-image", rl.LimitStrict(redis_rate.PerMinute(10)), cluster.PatchClearImage)
+
+	// Web Push: read the VAPID key (fail-open), subscribe/unsubscribe (writes,
+	// fail-closed like clear-image). All 404 when push is disabled (no keys).
+	api.GET("/push/config", rl.Limit(redis_rate.PerMinute(60)), push.GetConfig)
+	api.POST("/push/subscribe", rl.LimitStrict(redis_rate.PerMinute(20)), push.Subscribe)
+	api.POST("/push/unsubscribe", rl.LimitStrict(redis_rate.PerMinute(20)), push.Unsubscribe)
 
 	// Crawler-only server-rendered pages. nginx forwards bot requests for page
 	// routes here as /_prerender<original-path>; humans are served the SPA and

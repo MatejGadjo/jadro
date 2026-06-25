@@ -146,3 +146,11 @@ type ClusterVector struct {
 	Vector       []float32
 	ArticleCount int
 }
+
+// PushSubscription is a browser Web Push subscription (no user account; keyed by
+// endpoint). p256dh/auth are the client's encryption keys from PushManager.
+type PushSubscription struct {
+	Endpoint string `json:"endpoint"`
+	P256dh   string `json:"p256dh"`
+	Auth     string `json:"auth"`
+}
