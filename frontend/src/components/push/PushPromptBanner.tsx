@@ -117,14 +117,17 @@ export default function PushPromptBanner() {
             </p>
           </div>
         </div>
-        <div className="flex shrink-0 items-center gap-3">
-          <Button size="lg" className="flex-1 cursor-pointer sm:flex-none" onClick={handleAccept} disabled={busy}>
+        <div className="flex w-full items-center gap-2 sm:w-auto sm:shrink-0 sm:gap-3">
+          <Button
+            className="h-9 min-w-0 flex-1 cursor-pointer px-3 text-sm sm:h-10 sm:flex-none sm:px-6"
+            onClick={handleAccept}
+            disabled={busy}
+          >
             Да, извести ме
           </Button>
           <Button
-            size="lg"
             variant="outline"
-            className="flex-1 cursor-pointer sm:flex-none"
+            className="h-9 min-w-0 flex-1 cursor-pointer px-3 text-sm sm:h-10 sm:flex-none sm:px-6"
             onClick={handleDecline}
           >
             Не, благодарам
