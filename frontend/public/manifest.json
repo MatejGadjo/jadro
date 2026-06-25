@@ -3,7 +3,7 @@
   "short_name": "jadro.mk",
   "description": "Македонски агрегатор на вести. Следи ги најважните вести од сите извори на едно место.",
   "start_url": "/",
-  "display": "browser",
+  "display": "standalone",
   "background_color": "#f7f3eb",
   "theme_color": "#b42828",
   "lang": "mk",

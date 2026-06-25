@@ -10,6 +10,7 @@ import (
 	"github.com/MatejGadjo/NewsAggregator/internal/ingestion/rss"
 	"github.com/MatejGadjo/NewsAggregator/internal/jobs"
 	"github.com/MatejGadjo/NewsAggregator/internal/logger"
+	"github.com/MatejGadjo/NewsAggregator/internal/push"
 	"github.com/MatejGadjo/NewsAggregator/internal/rest"
 	"github.com/MatejGadjo/NewsAggregator/internal/rest/handlers"
 	"github.com/MatejGadjo/NewsAggregator/internal/rest/middleware"
@@ -25,6 +26,7 @@ func Initialize() *fx.App {
 		fx.Provide(config.NewConfig),
 		fx.Provide(func(cfg *config.Config) config.ONNXConfig { return cfg.ONNX }),
 		fx.Provide(func(cfg *config.Config) config.JobsConfig { return cfg.Jobs }),
+		fx.Provide(func(cfg *config.Config) config.PushConfig { return cfg.Push }),
 
 		// infrastructure
 		fx.Provide(logger.NewLogger),
@@ -59,6 +61,21 @@ func Initialize() *fx.App {
 			return jobs.NewIngestRunner(log, ingest, rescore)
 		}),
 		fx.Provide(func(svc *service.FeedService) jobs.AfterIngestFunc { return svc.WarmCache }),
+		// push: store + service + daily job. Service is constructed regardless;
+		// the cron only registers the daily send when VAPID keys are present.
+		fx.Provide(func(c *storage.Client) push.Store { return c }),
+		fx.Provide(func(c *storage.Client) push.FeedReader { return c }),
+		fx.Provide(func(cfg config.PushConfig, store push.Store, feed push.FeedReader, log *logger.Logger) *push.Service {
+			return push.NewService(push.Config{
+				VAPIDPublic:  cfg.VAPIDPublic,
+				VAPIDPrivate: cfg.VAPIDPrivate,
+				VAPIDSubject: cfg.VAPIDSubject,
+				MinSources:   cfg.MinSources,
+			}, store, feed, log)
+		}),
+		fx.Provide(func(svc *push.Service, log *logger.Logger) *jobs.PushJob {
+			return jobs.NewPushJob(svc, log)
+		}),
 		fx.Provide(jobs.NewCron),
 
 		// store interfaces
@@ -96,6 +113,10 @@ func Initialize() *fx.App {
 		fx.Provide(handlers.NewHealthHandler),
 		fx.Provide(handlers.NewClusterHandler),
 		fx.Provide(handlers.NewPrerenderHandler),
+		fx.Provide(func(c *storage.Client) handlers.PushStore { return c }),
+		fx.Provide(func(cfg config.PushConfig, store handlers.PushStore, log *logger.Logger) *handlers.PushHandler {
+			return handlers.NewPushHandler(store, cfg.VAPIDPublic, log)
+		}),
 
 		// http
 		fx.Provide(middleware.NewRateLimiter),

@@ -1,4 +1,4 @@
-.PHONY: run build test test-verbose test-coverage clean deps help
+.PHONY: run build test test-verbose test-coverage clean deps vapid help
 
 # Build directory
 BUILD_DIR=bin
@@ -61,6 +61,10 @@ deps:
 	@go mod download
 	@go mod verify
 	@echo "Dependencies updated"
+
+## vapid: Generate a VAPID keypair for Web Push (run once)
+vapid:
+	@go run ./cmd/vapidgen
 
 ## tidy: Clean up go.mod and go.sum
 tidy:

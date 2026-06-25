@@ -23,6 +23,14 @@ services:
       INGEST_CRON: ${INGEST_CRON:-*/15 * * * *}
       CLEANUP_CRON: ${CLEANUP_CRON:-0 3 * * *}
       CLEANUP_RETENTION_DAYS: ${CLEANUP_RETENTION_DAYS:-3}
+      # Web Push — empty VAPID keys disable push entirely. Set keys (make vapid)
+      # in the root .env to enable. PUSH_CRON is evaluated in PUSH_TIMEZONE.
+      VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
+      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
+      VAPID_SUBJECT: ${VAPID_SUBJECT:-mailto:kontakt@jadro.mk}
+      PUSH_CRON: ${PUSH_CRON:-0 9 * * *}
+      PUSH_TIMEZONE: ${PUSH_TIMEZONE:-Europe/Skopje}
+      PUSH_MIN_SOURCES: ${PUSH_MIN_SOURCES:-3}
       ONNX_RUNTIME_LIB_PATH: /app/models/onnxruntime-linux-x64-1.23.2/lib/libonnxruntime.so
       ONNX_MODEL_PATH: /app/models/paraphrase-multilingual-MiniLM-L12-v2/model.onnx
       ONNX_TOKENIZER_PATH: /app/models/paraphrase-multilingual-MiniLM-L12-v2/tokenizer.json

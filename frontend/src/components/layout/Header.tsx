@@ -2,6 +2,7 @@ import { Link } from '@tanstack/react-router'
 import { Sun, Moon } from 'lucide-react'
 import { Switch } from '@/components/ui/switch'
 import CategoryNav from './CategoryNav'
+import PushBell from '@/components/push/PushBell'
 import { useState, useEffect } from 'react'
 
 const MK_DAYS = ['Недела', 'Понеделник', 'Вторник', 'Среда', 'Четврток', 'Петок', 'Сабота']
@@ -28,6 +29,11 @@ function HeaderMeta() {
       style={mono}
     >
       <span className="uppercase">{getMkDate()}</span>
+      <PushBell
+        showLabel
+        leadingSeparator
+        className="text-[11px] uppercase tracking-[0.06em] text-foreground pointer-events-auto"
+      />
     </span>
   )
 }
@@ -86,6 +92,11 @@ export default function Header() {
 
             {/* Controls */}
             <div className="flex items-center gap-2 shrink-0">
+              {/* Mobile/tablet: icon-only bell + dot separator, left of the theme
+                  toggle. Desktop shows the labelled bell in the centered meta. */}
+              <span className="lg:hidden flex items-center">
+                <PushBell trailingSeparator iconClassName="w-4 h-4" className="text-foreground" />
+              </span>
               <Sun className="w-4 h-4 text-foreground" />
               <Switch
                 checked={isDarkMode}
