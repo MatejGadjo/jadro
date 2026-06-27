@@ -1,4 +1,5 @@
 import { Link } from '@tanstack/react-router'
+import { Instagram, Facebook } from 'lucide-react'
 import { TOPIC_ITEMS } from '@/lib/topics'
 import PushBell from '@/components/push/PushBell'
 
@@ -35,6 +36,26 @@ export default function Footer() {
               Агрегатор на македонски вести. Повеќе извори, една слика.
             </p>
             <PushBell showLabel className="text-xs text-muted-foreground" />
+            <div className="flex items-center gap-3">
+              <a
+                href="https://www.instagram.com/jadro.mk"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Instagram"
+                className="text-muted-foreground hover:text-editorial transition-colors duration-150"
+              >
+                <Instagram className="h-4.5 w-4.5" />
+              </a>
+              <a
+                href="https://www.facebook.com/people/Jadromk/61591601961792/"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Facebook"
+                className="text-muted-foreground hover:text-editorial transition-colors duration-150"
+              >
+                <Facebook className="h-4.5 w-4.5" />
+              </a>
+            </div>
           </div>
 
           {/* Navigation column */}
