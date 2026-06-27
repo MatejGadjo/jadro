@@ -31,6 +31,7 @@ services:
       PUSH_CRON: ${PUSH_CRON:-0 9 * * *}
       PUSH_TIMEZONE: ${PUSH_TIMEZONE:-Europe/Skopje}
       PUSH_MIN_SOURCES: ${PUSH_MIN_SOURCES:-3}
+      PUSH_FRESH_HOURS: ${PUSH_FRESH_HOURS:-16}
       ONNX_RUNTIME_LIB_PATH: /app/models/onnxruntime-linux-x64-1.23.2/lib/libonnxruntime.so
       ONNX_MODEL_PATH: /app/models/paraphrase-multilingual-MiniLM-L12-v2/model.onnx
       ONNX_TOKENIZER_PATH: /app/models/paraphrase-multilingual-MiniLM-L12-v2/tokenizer.json

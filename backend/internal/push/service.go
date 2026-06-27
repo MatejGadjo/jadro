@@ -10,6 +10,8 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
+	"unicode"
 
 	"github.com/MatejGadjo/NewsAggregator/domain"
 	"github.com/MatejGadjo/NewsAggregator/internal/logger"
@@ -18,13 +20,16 @@ import (
 const (
 	canonicalBaseURL = "https://jadro.mk"
 	defaultImage     = canonicalBaseURL + "/og-image.png"
-	notificationIcon = canonicalBaseURL + "/favicon-32x32.png"
+	// 180×180 brand icon — crisp on high-DPI phones (the 32px favicon looked
+	// pixelated upscaled to the Android notification icon size).
+	notificationIcon = canonicalBaseURL + "/apple-touch-icon.png"
 
-	candidateClusters = 10            // pool scanned for the day's story
+	candidateClusters = 20            // pool scanned for the day's story (wide enough that a fresh, lower-scored story isn't missed)
 	dedupWindowHours  = 24            // don't push the same cluster within this window
 	bodyMax           = 120           // notification body truncation
 	notificationTag   = "jadro-daily" // collapses to one notification on-device
 	sendConcurrency   = 8             // bounded fan-out
+	defaultFreshHours = 16            // daily story must have a new article within this many hours
 )
 
 // Config holds the push runtime settings the service and sender need.
@@ -33,6 +38,7 @@ type Config struct {
 	VAPIDPrivate string
 	VAPIDSubject string
 	MinSources   int
+	FreshHours   int
 }
 
 // payload is the JSON contract delivered to the service worker (public/sw.js).
@@ -47,11 +53,12 @@ type payload struct {
 
 // Service builds and sends the daily notification.
 type Service struct {
-	store      Store
-	feed       FeedReader
-	sender     Sender
-	log        *logger.Logger
-	minSources int
+	store       Store
+	feed        FeedReader
+	sender      Sender
+	log         *logger.Logger
+	minSources  int
+	freshWindow time.Duration
 }
 
 // NewService wires the production service with a webpush-backed sender.
@@ -65,7 +72,18 @@ func newService(cfg Config, store Store, feed FeedReader, sender Sender, log *lo
 	if min < 1 {
 		min = 1
 	}
-	return &Service{store: store, feed: feed, sender: sender, log: log, minSources: min}
+	freshHours := cfg.FreshHours
+	if freshHours < 1 {
+		freshHours = defaultFreshHours
+	}
+	return &Service{
+		store:       store,
+		feed:        feed,
+		sender:      sender,
+		log:         log,
+		minSources:  min,
+		freshWindow: time.Duration(freshHours) * time.Hour,
+	}
 }
 
 // SendDaily selects the day's story (or the digest fallback) and fans it out to
@@ -113,6 +131,11 @@ func (s *Service) buildPayload(ctx context.Context) (payload, int64) {
 		if cl.SourceCount < s.minSources {
 			continue
 		}
+		// Freshness: the story must have a new article within the window, so the
+		// 09:00 push is "what happened recently" and not a day-old topper.
+		if time.Since(cl.LastSeenAt) > s.freshWindow {
+			continue
+		}
 		recent, err := s.store.ClusterSentRecently(ctx, cl.ID, dedupWindowHours)
 		if err != nil {
 			s.log.Warnw("push: dedup check failed", "cluster_id", cl.ID, "error", err)
@@ -135,7 +158,7 @@ func (s *Service) storyPayload(ctx context.Context, cl domain.Cluster) payload {
 		}
 	}
 	return payload{
-		Title: clusterTitle(cl),
+		Title: capitalizeFirst(clusterTitle(cl)),
 		Body:  storyBody(cl),
 		Icon:  notificationIcon,
 		Image: image,
@@ -210,15 +233,18 @@ func clusterTitle(cl domain.Cluster) string {
 }
 
 func storyBody(cl domain.Cluster) string {
-	summary := truncate(cl.Summary, bodyMax)
-	if cl.SourceCount >= 2 {
-		prefix := strconv.Itoa(cl.SourceCount) + " извори"
-		if summary == "" {
-			return prefix
-		}
-		return prefix + " · " + summary
+	return capitalizeFirst(truncate(cl.Summary, bodyMax))
+}
+
+// capitalizeFirst upper-cases the first rune. Notification titles/bodies should
+// not start lowercase, but RSS headlines/summaries occasionally do.
+func capitalizeFirst(s string) string {
+	if s == "" {
+		return s
 	}
-	return summary
+	r := []rune(s)
+	r[0] = unicode.ToUpper(r[0])
+	return string(r)
 }
 
 func firstImage(arts []domain.ClusterArticleSource) string {
