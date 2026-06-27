@@ -6,11 +6,18 @@ import (
 	"net/http"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/MatejGadjo/NewsAggregator/domain"
 	"github.com/MatejGadjo/NewsAggregator/internal/logger"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+)
+
+// fresh/stale are last_seen_at timestamps relative to the default 16h window.
+var (
+	fresh = time.Now().Add(-2 * time.Hour)
+	stale = time.Now().Add(-30 * time.Hour)
 )
 
 // --- fakes ---
@@ -101,9 +108,9 @@ func TestSendDaily_PicksTopClusterClearingGate(t *testing.T) {
 	store := &fakeStore{subs: []domain.PushSubscription{sub("e1")}, recent: map[int64]bool{}}
 	feed := &fakeFeed{
 		clusters: []domain.Cluster{
-			{ID: 1, Headline: "weak", SourceCount: 1, Score: 9},     // below gate
-			{ID: 2, Headline: "strong", SourceCount: 4, Score: 8},   // first to clear gate
-			{ID: 3, Headline: "stronger", SourceCount: 5, Score: 7}, // lower score
+			{ID: 1, Headline: "weak", SourceCount: 1, Score: 9, LastSeenAt: fresh},                                  // below gate
+			{ID: 2, Headline: "strong", Summary: "детали за настанот", SourceCount: 4, Score: 8, LastSeenAt: fresh}, // first to clear gate
+			{ID: 3, Headline: "stronger", SourceCount: 5, Score: 7, LastSeenAt: fresh},                              // lower score
 		},
 		articles: map[int64][]domain.ClusterArticleSource{
 			2: {{ImageURL: strptr("http://cdn/x.jpg")}},
@@ -116,10 +123,11 @@ func TestSendDaily_PicksTopClusterClearingGate(t *testing.T) {
 
 	require.Len(t, sender.payloads, 1)
 	p := decodePayload(t, sender.payloads[0])
-	assert.Equal(t, "strong", p.Title)
+	assert.Equal(t, "Strong", p.Title, "first letter capitalized")
 	assert.Contains(t, p.URL, "/cluster/2")
 	assert.Equal(t, "https://cdn/x.jpg", p.Image, "http image upgraded to https")
-	assert.Contains(t, p.Body, "4 извори")
+	assert.Equal(t, "Детали за настанот", p.Body, "body is the capitalized summary")
+	assert.NotContains(t, p.Body, "извори", "source count no longer in the body")
 	assert.True(t, store.sentCalled)
 	assert.Equal(t, int64(2), store.sentCluster)
 }
@@ -128,8 +136,8 @@ func TestSendDaily_SkipsDedupedCluster(t *testing.T) {
 	store := &fakeStore{subs: []domain.PushSubscription{sub("e1")}, recent: map[int64]bool{2: true}}
 	feed := &fakeFeed{
 		clusters: []domain.Cluster{
-			{ID: 2, Headline: "already-sent", SourceCount: 5, Score: 9},
-			{ID: 3, Headline: "next", SourceCount: 3, Score: 8},
+			{ID: 2, Headline: "already-sent", SourceCount: 5, Score: 9, LastSeenAt: fresh},
+			{ID: 3, Headline: "next", SourceCount: 3, Score: 8, LastSeenAt: fresh},
 		},
 		articles: map[int64][]domain.ClusterArticleSource{},
 	}
@@ -139,7 +147,7 @@ func TestSendDaily_SkipsDedupedCluster(t *testing.T) {
 	require.NoError(t, svc.SendDaily(context.Background()))
 
 	p := decodePayload(t, sender.payloads[0])
-	assert.Equal(t, "next", p.Title)
+	assert.Equal(t, "Next", p.Title)
 	assert.Equal(t, int64(3), store.sentCluster)
 }
 
@@ -171,7 +179,7 @@ func TestSendDaily_PrunesExpiredSubscriptions(t *testing.T) {
 		recent: map[int64]bool{},
 	}
 	feed := &fakeFeed{
-		clusters: []domain.Cluster{{ID: 5, Headline: "story", SourceCount: 3}},
+		clusters: []domain.Cluster{{ID: 5, Headline: "story", SourceCount: 3, LastSeenAt: fresh}},
 		articles: map[int64][]domain.ClusterArticleSource{},
 	}
 	sender := &fakeSender{statusBy: map[string]int{"gone": http.StatusGone}}
@@ -181,6 +189,44 @@ func TestSendDaily_PrunesExpiredSubscriptions(t *testing.T) {
 
 	assert.Len(t, sender.calls, 3, "every subscription is attempted")
 	assert.Equal(t, []string{"gone"}, store.deleted, "only the 410 endpoint is pruned")
+}
+
+func TestSendDaily_SkipsStaleClusterForFreshOne(t *testing.T) {
+	store := &fakeStore{subs: []domain.PushSubscription{sub("e1")}, recent: map[int64]bool{}}
+	feed := &fakeFeed{
+		clusters: []domain.Cluster{
+			{ID: 1, Headline: "stale-top", SourceCount: 9, Score: 9, LastSeenAt: stale}, // highest score but too old
+			{ID: 2, Headline: "fresh", SourceCount: 3, Score: 5, LastSeenAt: fresh},     // lower score but recent
+		},
+		articles: map[int64][]domain.ClusterArticleSource{},
+	}
+	sender := &fakeSender{}
+	svc := newService(Config{MinSources: 3}, store, feed, sender, testLogger(t))
+
+	require.NoError(t, svc.SendDaily(context.Background()))
+
+	p := decodePayload(t, sender.payloads[0])
+	assert.Equal(t, "Fresh", p.Title, "a fresh story beats a stale higher-scored one")
+	assert.Equal(t, int64(2), store.sentCluster)
+}
+
+func TestSendDaily_AllStaleFallsBackToDigest(t *testing.T) {
+	store := &fakeStore{subs: []domain.PushSubscription{sub("e1")}, recent: map[int64]bool{}}
+	feed := &fakeFeed{
+		clusters: []domain.Cluster{
+			{ID: 1, Headline: "old1", SourceCount: 5, Score: 9, LastSeenAt: stale},
+			{ID: 2, Headline: "old2", SourceCount: 4, Score: 8, LastSeenAt: stale},
+		},
+		articles: map[int64][]domain.ClusterArticleSource{},
+	}
+	sender := &fakeSender{}
+	svc := newService(Config{MinSources: 3}, store, feed, sender, testLogger(t))
+
+	require.NoError(t, svc.SendDaily(context.Background()))
+
+	p := decodePayload(t, sender.payloads[0])
+	assert.Equal(t, "Денес во Македонија", p.Title, "nothing fresh enough → digest card")
+	assert.Equal(t, int64(0), store.sentCluster)
 }
 
 func TestSendDaily_NoSubscriptionsIsNoOp(t *testing.T) {

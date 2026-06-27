@@ -66,6 +66,7 @@ Correct workflow for any SQL change:
 | `PUSH_CRON` | `0 9 * * *` | Daily push schedule (in `PUSH_TIMEZONE`) |
 | `PUSH_TIMEZONE` | `Europe/Skopje` | TZ for `PUSH_CRON` (per-entry `CRON_TZ`) |
 | `PUSH_MIN_SOURCES` | `3` | Min sources a cluster needs to be pushed |
+| `PUSH_FRESH_HOURS` | `16` | Daily story must have a new article within this many hours |
 
 ## API contract
 

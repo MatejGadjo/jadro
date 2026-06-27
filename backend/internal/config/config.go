@@ -59,6 +59,7 @@ type PushConfig struct {
 	Cron         string
 	Timezone     string
 	MinSources   int
+	FreshHours   int // daily story must have a new article within this many hours
 }
 
 // Enabled reports whether Web Push is configured (both VAPID keys present).
@@ -118,6 +119,7 @@ func NewConfig() (*Config, error) {
 			Cron:         getenvDefault("PUSH_CRON", "0 9 * * *"),
 			Timezone:     getenvDefault("PUSH_TIMEZONE", "Europe/Skopje"),
 			MinSources:   int(int32FromEnvDefault("PUSH_MIN_SOURCES", 3)),
+			FreshHours:   int(int32FromEnvDefault("PUSH_FRESH_HOURS", 16)),
 		},
 	}
 
@@ -135,6 +137,10 @@ func NewConfig() (*Config, error) {
 
 	if c.Push.MinSources < 1 {
 		c.Push.MinSources = 1
+	}
+
+	if c.Push.FreshHours < 1 {
+		c.Push.FreshHours = 16
 	}
 
 	if c.Env == "production" && !c.Push.Enabled() {

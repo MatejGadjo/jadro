@@ -71,6 +71,7 @@ func Initialize() *fx.App {
 				VAPIDPrivate: cfg.VAPIDPrivate,
 				VAPIDSubject: cfg.VAPIDSubject,
 				MinSources:   cfg.MinSources,
+				FreshHours:   cfg.FreshHours,
 			}, store, feed, log)
 		}),
 		fx.Provide(func(svc *push.Service, log *logger.Logger) *jobs.PushJob {

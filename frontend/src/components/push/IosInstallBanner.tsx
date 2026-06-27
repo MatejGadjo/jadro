@@ -62,7 +62,7 @@ export default function IosInstallBanner() {
     hideIosHelp();
   };
 
-  // "Сфатив" = don't auto-show again (the bell can still reopen it).
+  // "Разбирам" = don't auto-show again (the bell can still reopen it).
   const handleGotIt = () => {
     setShow(false);
     markDismissed();
@@ -119,7 +119,7 @@ export default function IosInstallBanner() {
 
         <div className="flex shrink-0 items-center justify-end">
           <Button size="lg" className="w-full cursor-pointer sm:w-auto" onClick={handleGotIt}>
-            Сфатив
+            Разбирам
           </Button>
         </div>
       </div>
