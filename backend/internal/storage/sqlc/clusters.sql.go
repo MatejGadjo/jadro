@@ -329,6 +329,25 @@ func (q *Queries) GetClusterVector(ctx context.Context, clusterID int64) (GetClu
 	return i, err
 }
 
+const getClusterVectorForUpdate = `-- name: GetClusterVectorForUpdate :one
+SELECT vector, article_count
+FROM cluster_vectors
+WHERE cluster_id = $1
+FOR UPDATE
+`
+
+type GetClusterVectorForUpdateRow struct {
+	Vector       pgvector_go.Vector
+	ArticleCount int32
+}
+
+func (q *Queries) GetClusterVectorForUpdate(ctx context.Context, clusterID int64) (GetClusterVectorForUpdateRow, error) {
+	row := q.db.QueryRow(ctx, getClusterVectorForUpdate, clusterID)
+	var i GetClusterVectorForUpdateRow
+	err := row.Scan(&i.Vector, &i.ArticleCount)
+	return i, err
+}
+
 const getRecentArticleCount = `-- name: GetRecentArticleCount :one
 SELECT COUNT(*) FROM cluster_articles ca
 JOIN articles a ON a.id = ca.article_id
@@ -933,18 +952,19 @@ func (q *Queries) UpdateClusterScoresBatch(ctx context.Context, arg UpdateCluste
 const updateClusterVector = `-- name: UpdateClusterVector :exec
 UPDATE cluster_vectors
 SET vector        = $2,
-    article_count = article_count + 1,
+    article_count = $3,
     updated_at    = now()
 WHERE cluster_id = $1
 `
 
 type UpdateClusterVectorParams struct {
-	ClusterID int64
-	Vector    pgvector_go.Vector
+	ClusterID    int64
+	Vector       pgvector_go.Vector
+	ArticleCount int32
 }
 
 func (q *Queries) UpdateClusterVector(ctx context.Context, arg UpdateClusterVectorParams) error {
-	_, err := q.db.Exec(ctx, updateClusterVector, arg.ClusterID, arg.Vector)
+	_, err := q.db.Exec(ctx, updateClusterVector, arg.ClusterID, arg.Vector, arg.ArticleCount)
 	return err
 }
 

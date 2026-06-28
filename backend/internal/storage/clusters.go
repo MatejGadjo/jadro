@@ -40,9 +40,21 @@ func (c *Client) AttachAndUpdateVector(ctx context.Context, clusterID, articleID
 	if count == 0 {
 		return false, tx.Commit(ctx)
 	}
+
+	// Blend the new embedding into a running centroid instead of overwriting
+	// (last-write-wins drift). FOR UPDATE locks the cluster_vectors row so
+	// concurrent attaches to the same cluster serialize their read-modify-write
+	// rather than losing updates; the lock is held until Commit below.
+	current, err := qtx.GetClusterVectorForUpdate(ctx, clusterID)
+	if err != nil {
+		return false, err
+	}
+	n := int(current.ArticleCount)
+	blended := blendCentroid(current.Vector.Slice(), n, embedding)
 	if err := qtx.UpdateClusterVector(ctx, sqlc.UpdateClusterVectorParams{
-		ClusterID: clusterID,
-		Vector:    pgvector.NewVector(embedding),
+		ClusterID:    clusterID,
+		Vector:       pgvector.NewVector(blended),
+		ArticleCount: int32(n + 1),
 	}); err != nil {
 		return false, err
 	}
