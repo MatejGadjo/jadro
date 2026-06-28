@@ -230,10 +230,16 @@ SELECT vector, article_count
 FROM cluster_vectors
 WHERE cluster_id = $1;
 
+-- name: GetClusterVectorForUpdate :one
+SELECT vector, article_count
+FROM cluster_vectors
+WHERE cluster_id = $1
+FOR UPDATE;
+
 -- name: UpdateClusterVector :exec
 UPDATE cluster_vectors
 SET vector        = $2,
-    article_count = article_count + 1,
+    article_count = $3,
     updated_at    = now()
 WHERE cluster_id = $1;
 
