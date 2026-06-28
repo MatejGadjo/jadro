@@ -280,20 +280,16 @@ func (h *PrerenderHandler) feedToList(raw []byte, title, heading, description, c
 		})
 	}
 
-	ogImage := defaultOGImage
-	for _, d := range resp.ClusterDetails {
-		if img := firstImage(d.Articles); img != "" {
-			ogImage = img
-			break
-		}
-	}
-
+	// Homepage and topic-list pages represent the brand/category, not a single
+	// story, so they always share the branded card. A per-article image here
+	// meant sharing jadro.mk surfaced whatever cluster happened to be on top.
+	// Only cluster detail pages (renderCluster) use an article image.
 	return listView{
 		Title:       title,
 		Heading:     heading,
 		Description: description,
 		Canonical:   canonical,
-		OGImage:     ogImage,
+		OGImage:     defaultOGImage,
 		Items:       items,
 	}
 }
