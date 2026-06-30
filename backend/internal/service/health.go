@@ -6,39 +6,32 @@ import (
 	"time"
 
 	"github.com/MatejGadjo/NewsAggregator/internal/config"
-	"github.com/MatejGadjo/NewsAggregator/internal/jobs"
 	"github.com/MatejGadjo/NewsAggregator/internal/logger"
 )
 
 type HealthStatus struct {
-	OK               bool       `json:"ok"`
-	DB               string     `json:"db"`
-	Redis            string     `json:"redis"`
-	ArticleCount     int        `json:"article_count"`
-	ClusterCount     int        `json:"cluster_count"`
-	EmbeddingEnabled bool       `json:"embedding_enabled"`
-	Duration         string     `json:"duration"`
-	LastIngestAt     *time.Time `json:"last_ingest_at,omitempty"`
-	LastCleanupAt    *time.Time `json:"last_cleanup_at,omitempty"`
+	OK               bool   `json:"ok"`
+	DB               string `json:"db"`
+	Redis            string `json:"redis"`
+	ArticleCount     int    `json:"article_count"`
+	ClusterCount     int    `json:"cluster_count"`
+	EmbeddingEnabled bool   `json:"embedding_enabled"`
+	Duration         string `json:"duration"`
 }
 
 type HealthService struct {
-	store     HealthStore
-	cache     HealthCache
-	scheduler *jobs.IngestRunner
-	cleanup   *jobs.CleanupJob
-	cfg       *config.Config
-	log       *logger.Logger
+	store HealthStore
+	cache HealthCache
+	cfg   *config.Config
+	log   *logger.Logger
 }
 
-func NewHealthService(store HealthStore, cache HealthCache, scheduler *jobs.IngestRunner, cleanup *jobs.CleanupJob, cfg *config.Config, log *logger.Logger) *HealthService {
+func NewHealthService(store HealthStore, cache HealthCache, cfg *config.Config, log *logger.Logger) *HealthService {
 	return &HealthService{
-		store:     store,
-		cache:     cache,
-		scheduler: scheduler,
-		cleanup:   cleanup,
-		cfg:       cfg,
-		log:       log,
+		store: store,
+		cache: cache,
+		cfg:   cfg,
+		log:   log,
 	}
 }
 
@@ -81,8 +74,6 @@ func (s *HealthService) Check(ctx context.Context) (HealthStatus, int) {
 		ClusterCount:     clusterCount,
 		EmbeddingEnabled: s.cfg.ONNX.RuntimeLibPath != "",
 		Duration:         time.Since(start).String(),
-		LastIngestAt:     s.scheduler.LastIngestAt(),
-		LastCleanupAt:    s.cleanup.LastCleanupAt(),
 	}
 
 	return status, http.StatusOK
