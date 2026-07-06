@@ -75,6 +75,17 @@ func (s *ClusterService) GetCluster(ctx context.Context, id int64) ([]byte, int,
 	return buildClusterJSON(ctx, s.store, s.cache, s.log, id)
 }
 
+// WasEverAssigned reports whether id falls within the range of cluster ids
+// ever issued (id <= current max), meaning a missing cluster with this id was
+// deleted rather than never having existed.
+func (s *ClusterService) WasEverAssigned(ctx context.Context, id int64) (bool, error) {
+	maxID, err := s.store.MaxClusterID(ctx)
+	if err != nil {
+		return false, err
+	}
+	return id <= maxID, nil
+}
+
 // GetLatestArticles returns the most recent article per cluster for the sidebar feed.
 func (s *ClusterService) GetLatestArticles(ctx context.Context, limit int) ([]LatestArticleItem, error) {
 	rows, err := s.store.ListLatestArticles(ctx, int32(limit))

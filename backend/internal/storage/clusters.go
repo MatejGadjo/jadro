@@ -153,6 +153,14 @@ func (c *Client) GetClusterByID(ctx context.Context, id int64) (domain.Cluster, 
 	}, nil
 }
 
+// MaxClusterID returns the highest cluster id ever assigned that's still live.
+// Used to tell "deleted" (id <= max, purged by cleanup) apart from "never
+// existed" (id > max) cluster URLs for 410 vs 404 responses.
+func (c *Client) MaxClusterID(ctx context.Context) (int64, error) {
+	id, err := c.q.GetMaxClusterID(ctx)
+	return int64(id), err
+}
+
 func (c *Client) GetClusterIDForArticle(ctx context.Context, articleID int64) (int64, error) {
 	id, err := c.q.GetClusterIDForArticle(ctx, int32(articleID))
 	return int64(id), err

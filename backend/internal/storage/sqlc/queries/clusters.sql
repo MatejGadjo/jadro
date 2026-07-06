@@ -14,6 +14,9 @@ SELECT id, headline, display_title, summary, topic, score, created_at, updated_a
 FROM clusters
 WHERE id = $1;
 
+-- name: GetMaxClusterID :one
+SELECT COALESCE(MAX(id), 0)::int AS max_id FROM clusters;
+
 -- name: UpdateClusterScoreValue :exec
 UPDATE clusters SET score = $1 WHERE id = $2;
 
