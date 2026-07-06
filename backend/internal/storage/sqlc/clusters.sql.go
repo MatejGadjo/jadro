@@ -400,6 +400,17 @@ func (q *Queries) GetClusterVectorForUpdate(ctx context.Context, clusterID int64
 	return i, err
 }
 
+const getMaxClusterID = `-- name: GetMaxClusterID :one
+SELECT COALESCE(MAX(id), 0)::int AS max_id FROM clusters
+`
+
+func (q *Queries) GetMaxClusterID(ctx context.Context) (int32, error) {
+	row := q.db.QueryRow(ctx, getMaxClusterID)
+	var max_id int32
+	err := row.Scan(&max_id)
+	return max_id, err
+}
+
 const getRecentArticleCount = `-- name: GetRecentArticleCount :one
 SELECT COUNT(*) FROM cluster_articles ca
 JOIN articles a ON a.id = ca.article_id

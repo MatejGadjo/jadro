@@ -177,8 +177,15 @@ func (h *PrerenderHandler) renderCluster(c *gin.Context, idStr string) {
 
 	raw, status, err := h.cluster.GetCluster(c.Request.Context(), id)
 	if err != nil || status != http.StatusOK {
-		// A missing cluster must return 404 so Google doesn't index an empty
-		// page; a backend error also has no content to render.
+		if status == http.StatusNotFound {
+			// Distinguish "existed and was purged by the cleanup job" (410,
+			// a stronger deindex signal that stops Google recrawling it) from
+			// "never existed" (plain 404).
+			if wasAssigned, chkErr := h.cluster.WasEverAssigned(c.Request.Context(), id); chkErr == nil && wasAssigned {
+				h.renderGone(c)
+				return
+			}
+		}
 		h.renderNotFound(c)
 		return
 	}
@@ -320,6 +327,20 @@ func (h *PrerenderHandler) renderNotFound(c *gin.Context) {
 		Canonical:   canonicalBaseURL + "/",
 	}
 	h.execute(c, http.StatusNotFound, "notfound.gohtml", view)
+}
+
+// renderGone serves the branded not-found page with a real HTTP 410 status,
+// for a cluster id that was assigned and later purged by the cleanup job.
+// 410 tells crawlers the removal is permanent, so they deindex and stop
+// recrawling sooner than they would for a plain 404.
+func (h *PrerenderHandler) renderGone(c *gin.Context) {
+	view := notFoundView{
+		Title:       "Страницата не постои — Јадро",
+		Heading:     "410",
+		Description: "Страницата што ја баравте е трајно отстранета.",
+		Canonical:   canonicalBaseURL + "/",
+	}
+	h.execute(c, http.StatusGone, "notfound.gohtml", view)
 }
 
 func (h *PrerenderHandler) execute(c *gin.Context, status int, name string, data any) {

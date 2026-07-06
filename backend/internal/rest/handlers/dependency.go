@@ -16,6 +16,7 @@ type ClusterServicer interface {
 	GetCluster(ctx context.Context, id int64) ([]byte, int, error)
 	GetLatestArticles(ctx context.Context, limit int) ([]service.LatestArticleItem, error)
 	ClearArticleImage(ctx context.Context, id int64) error
+	WasEverAssigned(ctx context.Context, id int64) (bool, error)
 }
 
 type HealthServicer interface {
