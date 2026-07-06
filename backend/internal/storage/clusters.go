@@ -72,11 +72,12 @@ func (c *Client) CreateCluster(ctx context.Context, headline, summary, displayTi
 	return int64(id), err
 }
 
-func (c *Client) FindSimilarClusterNeighbors(ctx context.Context, embedding []float32, hours, maxNeighbors int) ([]domain.ClusterNeighbor, error) {
+func (c *Client) FindSimilarClusterNeighbors(ctx context.Context, embedding []float32, hours, maxNeighbors, maxAgeHours int) ([]domain.ClusterNeighbor, error) {
 	rows, err := c.q.FindSimilarClusterNeighbors(ctx, sqlc.FindSimilarClusterNeighborsParams{
 		Column1: pgvector.NewVector(embedding),
 		Column2: int32(hours),
 		Limit:   int32(maxNeighbors),
+		Column4: int32(maxAgeHours),
 	})
 	if err != nil {
 		return nil, err
@@ -84,6 +85,23 @@ func (c *Client) FindSimilarClusterNeighbors(ctx context.Context, embedding []fl
 	out := make([]domain.ClusterNeighbor, len(rows))
 	for i, r := range rows {
 		out[i] = domain.ClusterNeighbor{ClusterID: r.ClusterID, Similarity: r.Similarity}
+	}
+	return out, nil
+}
+
+// FindNearestArticleSimilarityInClusters returns, per candidate cluster, the
+// similarity of its single closest member article to embedding.
+func (c *Client) FindNearestArticleSimilarityInClusters(ctx context.Context, embedding []float32, clusterIDs []int64) ([]domain.ClusterNeighbor, error) {
+	rows, err := c.q.FindNearestArticleSimilarityInClusters(ctx, sqlc.FindNearestArticleSimilarityInClustersParams{
+		Column1: pgvector.NewVector(embedding),
+		Column2: clusterIDs,
+	})
+	if err != nil {
+		return nil, err
+	}
+	out := make([]domain.ClusterNeighbor, len(rows))
+	for i, r := range rows {
+		out[i] = domain.ClusterNeighbor{ClusterID: int64(r.ClusterID), Similarity: r.Similarity}
 	}
 	return out, nil
 }

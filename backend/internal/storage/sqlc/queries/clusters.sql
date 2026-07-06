@@ -248,8 +248,23 @@ SELECT cv.cluster_id, (1 - (cv.vector <=> $1::vector))::float8 AS similarity
 FROM cluster_vectors cv
 INNER JOIN clusters c ON c.id = cv.cluster_id
 WHERE c.last_seen_at >= NOW() - make_interval(hours => $2::int4)
+  AND c.created_at >= NOW() - make_interval(hours => $4::int4)
 ORDER BY cv.vector <=> $1::vector
 LIMIT $3;
+
+-- name: FindNearestArticleSimilarityInClusters :many
+-- For each candidate cluster, the similarity of its single closest member
+-- article to the query embedding. Used as the actual merge decision instead
+-- of the cluster's blended centroid, which drifts as a cluster grows and can
+-- end up merging in a story that no individual member closely resembles.
+SELECT DISTINCT ON (ca.cluster_id)
+    ca.cluster_id,
+    (1 - (a.embedding <=> $1::vector))::float8 AS similarity
+FROM cluster_articles ca
+INNER JOIN articles a ON a.id = ca.article_id
+WHERE ca.cluster_id = ANY($2::bigint[])
+  AND a.embedding IS NOT NULL
+ORDER BY ca.cluster_id, a.embedding <=> $1::vector;
 
 -- name: DeleteOrphanedClusters :execresult
 DELETE FROM clusters WHERE id NOT IN (SELECT DISTINCT cluster_id FROM cluster_articles);

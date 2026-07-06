@@ -124,11 +124,57 @@ func (q *Queries) DeleteOrphanedClusters(ctx context.Context) (pgconn.CommandTag
 	return q.db.Exec(ctx, deleteOrphanedClusters)
 }
 
+const findNearestArticleSimilarityInClusters = `-- name: FindNearestArticleSimilarityInClusters :many
+SELECT DISTINCT ON (ca.cluster_id)
+    ca.cluster_id,
+    (1 - (a.embedding <=> $1::vector))::float8 AS similarity
+FROM cluster_articles ca
+INNER JOIN articles a ON a.id = ca.article_id
+WHERE ca.cluster_id = ANY($2::bigint[])
+  AND a.embedding IS NOT NULL
+ORDER BY ca.cluster_id, a.embedding <=> $1::vector
+`
+
+type FindNearestArticleSimilarityInClustersParams struct {
+	Column1 pgvector_go.Vector
+	Column2 []int64
+}
+
+type FindNearestArticleSimilarityInClustersRow struct {
+	ClusterID  int32
+	Similarity float64
+}
+
+// For each candidate cluster, the similarity of its single closest member
+// article to the query embedding. Used as the actual merge decision instead
+// of the cluster's blended centroid, which drifts as a cluster grows and can
+// end up merging in a story that no individual member closely resembles.
+func (q *Queries) FindNearestArticleSimilarityInClusters(ctx context.Context, arg FindNearestArticleSimilarityInClustersParams) ([]FindNearestArticleSimilarityInClustersRow, error) {
+	rows, err := q.db.Query(ctx, findNearestArticleSimilarityInClusters, arg.Column1, arg.Column2)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []FindNearestArticleSimilarityInClustersRow
+	for rows.Next() {
+		var i FindNearestArticleSimilarityInClustersRow
+		if err := rows.Scan(&i.ClusterID, &i.Similarity); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const findSimilarClusterNeighbors = `-- name: FindSimilarClusterNeighbors :many
 SELECT cv.cluster_id, (1 - (cv.vector <=> $1::vector))::float8 AS similarity
 FROM cluster_vectors cv
 INNER JOIN clusters c ON c.id = cv.cluster_id
 WHERE c.last_seen_at >= NOW() - make_interval(hours => $2::int4)
+  AND c.created_at >= NOW() - make_interval(hours => $4::int4)
 ORDER BY cv.vector <=> $1::vector
 LIMIT $3
 `
@@ -137,6 +183,7 @@ type FindSimilarClusterNeighborsParams struct {
 	Column1 pgvector_go.Vector
 	Column2 int32
 	Limit   int32
+	Column4 int32
 }
 
 type FindSimilarClusterNeighborsRow struct {
@@ -145,7 +192,12 @@ type FindSimilarClusterNeighborsRow struct {
 }
 
 func (q *Queries) FindSimilarClusterNeighbors(ctx context.Context, arg FindSimilarClusterNeighborsParams) ([]FindSimilarClusterNeighborsRow, error) {
-	rows, err := q.db.Query(ctx, findSimilarClusterNeighbors, arg.Column1, arg.Column2, arg.Limit)
+	rows, err := q.db.Query(ctx, findSimilarClusterNeighbors,
+		arg.Column1,
+		arg.Column2,
+		arg.Limit,
+		arg.Column4,
+	)
 	if err != nil {
 		return nil, err
 	}
