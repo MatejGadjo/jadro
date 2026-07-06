@@ -15,13 +15,21 @@ import (
 
 const (
 	// SimilarityThreshold is the minimum similarity score for clustering.
-	// When using embeddings (primary): 0.65 provides good precision for semantic similarity
-	// Recommended range: 0.60-0.70 for embedding-based clustering
-	SimilarityThreshold = 0.60
+	// Calibrated against production embeddings (paraphrase-multilingual-MiniLM-L12-v2):
+	// same-story pairs from different sources scored 0.71-1.00, while distinct
+	// stories sharing a broad theme (e.g. different World Cup matches, different
+	// wildfires) scored 0.47-0.61. 0.70 sits in the gap between the two.
+	SimilarityThreshold = 0.70
 	// DefaultClusteringHours is the default time window for clustering articles (24 hours).
 	DefaultClusteringHours = 24
 	// MaxANNNeighbors limits how many nearest neighbors we pull per article for ANN clustering.
 	MaxANNNeighbors = 25
+	// MaxClusterAgeHours caps how long a cluster keeps accepting new articles,
+	// measured from its creation time. Without this cap, a cluster's last_seen_at
+	// keeps sliding forward on every attach, so a centroid can drift indefinitely
+	// and absorb unrelated follow-up stories forever (e.g. a "wildfire" cluster
+	// merging fires from three different countries over a week).
+	MaxClusterAgeHours = 48
 
 	clusterDisplayTitleEmbeddingWeight      = 1.3
 	clusterDisplayTitleMinEmbeddingArticles = 2
@@ -61,7 +69,26 @@ func (s *ClusteringService) bestClusterByEmbedding(
 		return 0, 0, nil
 	}
 
-	neighbors, err := s.store.FindSimilarClusterNeighbors(ctx, embedding, DefaultClusteringHours, MaxANNNeighbors)
+	// Stage 1: use the (cheap, ANN-indexed) cluster centroids purely for
+	// candidate recall — narrow down to a handful of plausibly-relevant
+	// clusters within the recency/age windows.
+	candidates, err := s.store.FindSimilarClusterNeighbors(ctx, embedding, DefaultClusteringHours, MaxANNNeighbors, MaxClusterAgeHours)
+	if err != nil || len(candidates) == 0 {
+		return 0, 0, err
+	}
+
+	candidateIDs := make([]int64, len(candidates))
+	for i, n := range candidates {
+		candidateIDs[i] = n.ClusterID
+	}
+
+	// Stage 2: the actual merge decision compares against each candidate
+	// cluster's single nearest member article, not its blended centroid. A
+	// centroid drifts as a cluster grows and can end up "closer" to a new,
+	// unrelated article than any real member ever was — comparing against
+	// the nearest member instead keeps a cluster tied to stories its members
+	// actually resemble.
+	neighbors, err := s.store.FindNearestArticleSimilarityInClusters(ctx, embedding, candidateIDs)
 	if err != nil || len(neighbors) == 0 {
 		return 0, 0, err
 	}
