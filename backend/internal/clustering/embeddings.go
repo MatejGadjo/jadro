@@ -6,6 +6,7 @@ import (
 	"math"
 	"os"
 	"sync"
+	"time"
 
 	"github.com/MatejGadjo/NewsAggregator/internal/config"
 	"github.com/MatejGadjo/NewsAggregator/internal/logger"
@@ -267,8 +268,12 @@ func (eg *EmbeddingGenerator) generateEmbeddingsBatch(ctx context.Context, texts
 			}
 		}
 
+		runStart := time.Now()
 		if err := r.session.Run(); err != nil {
 			return nil, fmt.Errorf("ONNX inference failed: %w", err)
+		}
+		if d := time.Since(runStart); d > 2*time.Second {
+			eg.log.Warnw("slow ONNX inference", "duration_ms", d.Milliseconds(), "batch", count)
 		}
 
 		outputData := r.outputTensor.GetData()
