@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"runtime/debug"
 	"sync"
 
 	"github.com/MatejGadjo/NewsAggregator/internal/logger"
@@ -59,46 +60,62 @@ func (s *ClusteringService) AssignArticle(ctx context.Context, articleID int64) 
 		return lookupErr
 	}
 
-	// Serialize from the ANN read through the vector insert: the read and the
-	// create must be atomic so a concurrent assignment sees the just-created
-	// cluster. The lock is released before the score/title refresh below, which
-	// is cosmetic and does not affect the find-or-create decision.
-	s.assignMu.Lock()
+	// Run the find-or-create decision under assignMu. The lock is acquired and
+	// released inside this closure via defer, so a panic in any of the DB calls
+	// can never leak the mutex. A leaked lock here is catastrophic: it deadlocks
+	// every future cluster assignment and, because they share the worker pool,
+	// starves embedding too — the exact freeze observed in production. The
+	// recover also surfaces the panic in logs instead of the pool swallowing it.
+	//
+	// Semantics preserved: the lock spans the ANN read through the vector insert
+	// (so a concurrent assignment sees a just-created cluster) and is released
+	// before the cosmetic score/title work below.
+	var createdClusterID, bestClusterID int64
+	err = func() (err error) {
+		s.assignMu.Lock()
+		defer s.assignMu.Unlock()
+		defer func() {
+			if r := recover(); r != nil {
+				s.log.Errorw("panic in cluster assignment critical section",
+					"article_id", article.ID, "recover", r, "stack", string(debug.Stack()))
+				err = fmt.Errorf("cluster assignment panic for article %d: %v", article.ID, r)
+			}
+		}()
 
-	bestClusterID, bestSim, err := s.bestClusterByEmbedding(ctx, embedding)
+		best, bestSim, err := s.bestClusterByEmbedding(ctx, embedding)
+		if err != nil {
+			return err
+		}
+		if best == 0 || bestSim < SimilarityThreshold {
+			clusterID, err := s.createClusterForArticle(ctx, article)
+			if err != nil {
+				return err
+			}
+			if err := s.store.AttachArticleToCluster(ctx, clusterID, article.ID); err != nil {
+				return err
+			}
+			if err := s.store.InsertClusterVector(ctx, clusterID, embedding, 1); err != nil {
+				return err
+			}
+			createdClusterID = clusterID
+			return nil
+		}
+		bestClusterID = best
+		return nil
+	}()
 	if err != nil {
-		s.assignMu.Unlock()
 		return err
 	}
 
-	if bestClusterID == 0 || bestSim < SimilarityThreshold {
-		clusterID, err := s.createClusterForArticle(ctx, article)
-		if err != nil {
-			s.assignMu.Unlock()
-			return err
-		}
-		if err := s.store.AttachArticleToCluster(ctx, clusterID, article.ID); err != nil {
-			s.assignMu.Unlock()
-			return err
-		}
-		if err := s.store.InsertClusterVector(ctx, clusterID, embedding, 1); err != nil {
-			s.assignMu.Unlock()
-			return err
-		}
-		// Vector is now visible to the next article's ANN query; release before
-		// the cosmetic score update.
-		s.assignMu.Unlock()
-
-		if err := s.updateClusterScorePreserveUpdatedAt(ctx, clusterID); err != nil {
-			s.log.Warnw("failed to update new cluster score", "cluster_id", clusterID, "error", err)
+	if createdClusterID != 0 {
+		if err := s.updateClusterScorePreserveUpdatedAt(ctx, createdClusterID); err != nil {
+			s.log.Warnw("failed to update new cluster score", "cluster_id", createdClusterID, "error", err)
 		}
 		return nil
 	}
 
-	// Attaching to an existing cluster does not race the find-or-create
-	// invariant, so the lock is not needed beyond this decision point.
-	s.assignMu.Unlock()
-
+	// Existing-cluster path: attaching does not race the find-or-create
+	// invariant, so it runs outside the lock.
 	attached, err := s.store.AttachAndUpdateVector(ctx, bestClusterID, article.ID, article.SourceID, lastSeenAtForArticle(article), embedding)
 	if err != nil {
 		return err
