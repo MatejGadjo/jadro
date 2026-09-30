@@ -37,3 +37,6 @@ creator_outreach.csv
 *.swp
 .DS_Store
 Thumbs.db
+
+# Local browser-automation artifacts
+.playwright-mcp/
