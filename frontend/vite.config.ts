@@ -6,7 +6,8 @@ import { visualizer } from 'rollup-plugin-visualizer'
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react(), tailwindcss(), visualizer({ open: true })],
+  // `ANALYZE=1 npm run build` writes and opens stats.html (bundle report).
+  plugins: [react(), tailwindcss(), process.env.ANALYZE ? visualizer({ open: true }) : null],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),

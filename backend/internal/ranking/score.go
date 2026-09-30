@@ -35,7 +35,7 @@ func ComputeClusterScore(articleCount int, newestPublishedAt *time.Time, oldestP
 
 	// Recency component: 8h decay constant — stories from this morning feel old by evening.
 	// No floor: let old stories decay to zero so they stop blocking the feed.
-	var recencyMultiplier float64 = 1.0
+	recencyMultiplier := 1.0
 	if newestPublishedAt != nil {
 		hoursSinceNewest := now.Sub(*newestPublishedAt).Hours()
 		recencyMultiplier = math.Exp(-hoursSinceNewest / 8.0)

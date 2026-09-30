@@ -39,7 +39,7 @@ func NewServer(
 	r := gin.New()
 	// Trust X-Forwarded-For only from the nginx container (Docker bridge subnet).
 	// This makes ClientIP() return the real visitor IP for per-IP rate limiting.
-	r.SetTrustedProxies([]string{"172.18.0.0/16"}) //nolint:errcheck
+	_ = r.SetTrustedProxies([]string{"172.18.0.0/16"})
 	r.Use(middleware.CORS(cfg.Security.AllowedOrigins))
 	r.Use(gin.Recovery())
 	r.Use(middleware.Timeout(handlerTimeout))
