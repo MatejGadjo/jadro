@@ -1,0 +1,5 @@
+# Models are mounted at runtime (see docker-compose.yml), never baked in.
+models/
+bin/
+*.test
+coverage.*
