@@ -35,7 +35,7 @@ VAPID_PUBLIC_KEY=...  VAPID_PRIVATE_KEY=...  VAPID_SUBJECT=mailto:you@example.co
 
 The compose stack binds nginx, Postgres and Redis to `127.0.0.1` only. **Never** change those to `0.0.0.0`. Reach the database through an SSH tunnel when you need it.
 
-For analytics, put `VITE_GA_MEASUREMENT_ID=G-…` in `frontend/.env` before building. Vite bakes it into the bundle.
+**Analytics (optional, off by default).** For Google Analytics 4, put `VITE_GA_MEASUREMENT_ID=G-…` in `frontend/.env` before building (Vite bakes it into the bundle). Then allow its origins in the Content-Security-Policy through `CSP_SCRIPT_SRC` / `CSP_CONNECT_SRC` in `.env` (see `.env.example`). Any other provider (Plausible, Umami, a CDN's beacon) works the same way: add its origins to those two variables.
 
 ## 3. TLS proxy on the host
 

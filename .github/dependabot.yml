@@ -18,3 +18,6 @@ updates:
   - package-ecosystem: docker
     directories: [/backend, /frontend]
     schedule: { interval: monthly }
+  - package-ecosystem: docker-compose
+    directory: /
+    schedule: { interval: monthly }
