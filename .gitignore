@@ -8,6 +8,9 @@
 docker-compose.override.yml
 *.local.json
 
+# Deployment-specific trusted proxy ranges (see nginx/real-ip.d/README.md)
+nginx/real-ip.d/*.conf
+
 # Personal AI tool settings (shared AGENTS.md / CLAUDE.md are committed)
 .claude/
 **/.claude/settings.local.json
@@ -23,13 +26,6 @@ stats.html
 coverage/
 coverage.out
 coverage.html
-
-# Private deployment notes (keep these outside the repo)
-PRODUCTION.md
-CLOUDFLARE.md
-GOOGLE_ANALYTICS.md
-marketing.md
-creator_outreach.csv
 
 # Editors / OS
 .idea/
