@@ -3,7 +3,6 @@ package rss
 import (
 	"context"
 	"encoding/json"
-	"net/url"
 	"strings"
 	"sync"
 	"time"
@@ -13,6 +12,7 @@ import (
 	"github.com/MatejGadjo/jadro/internal/jobs"
 	"github.com/MatejGadjo/jadro/internal/logger"
 	"github.com/MatejGadjo/jadro/internal/topics"
+	"github.com/MatejGadjo/jadro/internal/urlutil"
 	"github.com/alitto/pond/v2"
 	"github.com/mmcdole/gofeed"
 )
@@ -39,21 +39,17 @@ func StartRSSIngestion(ctx context.Context, store IngestionStore, log *logger.Lo
 
 	pondPool := pond.NewPool(ingestionWorkerCount)
 
+	// Only this loop touches the map, so it needs no lock.
 	rateLimiters := make(map[int64]*rateLimiter)
-	var mu sync.Mutex
 	var totals ingestionStats
 	var totalsMu sync.Mutex
 
 	for _, source := range sources {
-		source := source
-
-		mu.Lock()
 		limiter, exists := rateLimiters[source.ID]
 		if !exists {
 			limiter = newRateLimiter(source.RateLimitPerMin)
 			rateLimiters[source.ID] = limiter
 		}
-		mu.Unlock()
 
 		pondPool.Submit(func() {
 			limiter.wait()
@@ -119,7 +115,7 @@ func storeFetchedArticles(
 	}
 
 	now := time.Now()
-	sourceDomain := normalizeDomain(sourceBaseURL)
+	sourceDomain := urlutil.Domain(sourceBaseURL)
 	storedCount := 0
 	errorCount := 0
 	embeddingQueued := 0
@@ -237,16 +233,4 @@ func storeFetchedArticles(
 		errorCount:      errorCount,
 		embeddingQueued: embeddingQueued,
 	}
-}
-
-func normalizeDomain(raw string) string {
-	raw = strings.TrimSpace(strings.ToLower(raw))
-	if raw == "" {
-		return ""
-	}
-	parsed, err := url.Parse(raw)
-	if err == nil && parsed.Host != "" {
-		raw = parsed.Host
-	}
-	return strings.TrimPrefix(raw, "www.")
 }

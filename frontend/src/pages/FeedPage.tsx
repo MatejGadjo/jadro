@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useParams } from '@tanstack/react-router'
 import FeedEmpty from '@/components/feed/FeedEmpty'
 import ClusterCardSkeleton, { TopicSectionHeaderSkeleton } from '@/components/feed/ClusterCardSkeleton'
@@ -35,17 +35,22 @@ export default function FeedPage() {
 
   const { data, isLoading, error } = useFeed(topicValue ?? '', activePage, Boolean(topicValue))
 
-  // Accumulate cluster details (with embedded articles) as pages load
-  useEffect(() => {
+  // Accumulate cluster details (with embedded articles) as pages load.
+  // Adjusted during render when a new page arrives (same pattern as the topic
+  // reset above) instead of in an effect, which would render twice.
+  const [seenData, setSeenData] = useState(data)
+  if (data !== seenData) {
+    setSeenData(data)
     const details = data?.cluster_details
-    if (!details) return
-    setAccumulated((prev) => {
-      const existing = new Set(prev.map((d) => d.cluster.id))
-      const fresh = details.filter((d) => !existing.has(d.cluster.id))
-      return fresh.length > 0 ? [...prev, ...fresh] : prev
-    })
-    setHasMore(details.length >= FEED_PAGE_SIZE)
-  }, [data])
+    if (details) {
+      setAccumulated((prev) => {
+        const existing = new Set(prev.map((d) => d.cluster.id))
+        const fresh = details.filter((d) => !existing.has(d.cluster.id))
+        return fresh.length > 0 ? [...prev, ...fresh] : prev
+      })
+      setHasMore(details.length >= FEED_PAGE_SIZE)
+    }
+  }
 
   const isLoadingMore = isLoading && activePage > 0
 

@@ -91,4 +91,3 @@ func (st *sentenceTokenizer) truncateTextToTokens(text string, maxTokens int) (s
 
 	return st.tokenizer.Decode(encoding.Ids[:maxTokens], true), nil
 }
-

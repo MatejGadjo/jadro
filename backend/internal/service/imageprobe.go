@@ -91,7 +91,7 @@ func (p *httpImageProber) IsBroken(ctx context.Context, rawURL string) bool {
 
 	resp, err := p.do(ctx, http.MethodHead, u.String())
 	if err == nil && (resp.StatusCode == http.StatusMethodNotAllowed || resp.StatusCode == http.StatusNotImplemented) {
-		resp.Body.Close()
+		_ = resp.Body.Close()
 		resp, err = p.do(ctx, http.MethodGet, u.String())
 	}
 	if err != nil {

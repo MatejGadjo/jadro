@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"net/url"
 	"sort"
 	"strconv"
 	"strings"
@@ -13,6 +12,7 @@ import (
 	"github.com/MatejGadjo/jadro/domain"
 	"github.com/MatejGadjo/jadro/internal/logger"
 	"github.com/MatejGadjo/jadro/internal/topics"
+	"github.com/MatejGadjo/jadro/internal/urlutil"
 )
 
 const feedVersionKey = "meta:feed_version"
@@ -385,7 +385,7 @@ func (s *FeedService) buildCategorySections(ctx context.Context) ([]ClusterSecti
 			Domain:  sourceDomain(r.FeaturedArticle.SourceBaseURL, r.FeaturedArticle.SourceRSSURL, r.FeaturedArticle.SourceName),
 		}
 		out = append(out, ClusterSectionDTO{
-			Category: r.Cluster.Topic,
+			Category: r.Topic,
 			Cluster:  r.Cluster,
 			Sources:  []sourceGroupDTO{{Source: src, Articles: []articleDTO{art}}},
 		})
@@ -483,7 +483,7 @@ func articleOrderTime(publishedAt *time.Time, fetchedAt time.Time) time.Time {
 
 func sourceDomain(baseURL, rssURL, sourceName string) string {
 	for _, raw := range []string{baseURL, rssURL} {
-		if domain := extractDomain(raw); domain != "" {
+		if domain := urlutil.Domain(raw); domain != "" {
 			return domain
 		}
 	}
@@ -492,33 +492,4 @@ func sourceDomain(baseURL, rssURL, sourceName string) string {
 		return "unknown-source"
 	}
 	return fallback
-}
-
-func extractDomain(raw string) string {
-	raw = strings.TrimSpace(raw)
-	if raw == "" {
-		return ""
-	}
-	u, err := url.Parse(raw)
-	if err != nil || u.Hostname() == "" {
-		if !strings.Contains(raw, "://") {
-			u, err = url.Parse("https://" + raw)
-		}
-	}
-	host := ""
-	if err == nil && u != nil {
-		host = u.Hostname()
-	}
-	if host == "" {
-		host = raw
-		if idx := strings.Index(host, "/"); idx >= 0 {
-			host = host[:idx]
-		}
-		if idx := strings.Index(host, ":"); idx >= 0 {
-			host = host[:idx]
-		}
-	}
-	host = strings.ToLower(strings.TrimSpace(host))
-	host = strings.TrimPrefix(host, "www.")
-	return host
 }
