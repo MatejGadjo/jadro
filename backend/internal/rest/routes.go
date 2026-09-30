@@ -1,8 +1,8 @@
 package rest
 
 import (
-	"github.com/MatejGadjo/NewsAggregator/internal/rest/handlers"
-	"github.com/MatejGadjo/NewsAggregator/internal/rest/middleware"
+	"github.com/MatejGadjo/jadro/internal/rest/handlers"
+	"github.com/MatejGadjo/jadro/internal/rest/middleware"
 	"github.com/gin-gonic/gin"
 	"github.com/go-redis/redis_rate/v10"
 )

@@ -5,8 +5,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/MatejGadjo/NewsAggregator/internal/service"
-	"github.com/MatejGadjo/NewsAggregator/internal/topics"
+	"github.com/MatejGadjo/jadro/internal/service"
+	"github.com/MatejGadjo/jadro/internal/topics"
 	"github.com/gin-gonic/gin"
 )
 

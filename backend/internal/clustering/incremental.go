@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/MatejGadjo/NewsAggregator/domain"
-	"github.com/MatejGadjo/NewsAggregator/internal/ranking"
+	"github.com/MatejGadjo/jadro/domain"
+	"github.com/MatejGadjo/jadro/internal/ranking"
 	"github.com/jackc/pgx/v5"
 )
 

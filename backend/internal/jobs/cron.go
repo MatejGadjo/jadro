@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/MatejGadjo/NewsAggregator/internal/config"
-	"github.com/MatejGadjo/NewsAggregator/internal/logger"
+	"github.com/MatejGadjo/jadro/internal/config"
+	"github.com/MatejGadjo/jadro/internal/logger"
 	"github.com/robfig/cron/v3"
 	"go.uber.org/fx"
 )

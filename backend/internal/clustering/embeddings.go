@@ -8,8 +8,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/MatejGadjo/NewsAggregator/internal/config"
-	"github.com/MatejGadjo/NewsAggregator/internal/logger"
+	"github.com/MatejGadjo/jadro/internal/config"
+	"github.com/MatejGadjo/jadro/internal/logger"
 	ort "github.com/yalue/onnxruntime_go"
 )
 

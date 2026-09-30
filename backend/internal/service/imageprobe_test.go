@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/MatejGadjo/NewsAggregator/domain"
-	"github.com/MatejGadjo/NewsAggregator/internal/logger"
+	"github.com/MatejGadjo/jadro/domain"
+	"github.com/MatejGadjo/jadro/internal/logger"
 	"github.com/jackc/pgx/v5"
 	"go.uber.org/zap"
 )

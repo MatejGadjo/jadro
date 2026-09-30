@@ -6,7 +6,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/MatejGadjo/NewsAggregator/internal/logger"
+	"github.com/MatejGadjo/jadro/internal/logger"
 	"github.com/alitto/pond/v2"
 	"go.uber.org/fx"
 )

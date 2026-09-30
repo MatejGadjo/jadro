@@ -6,8 +6,8 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/MatejGadjo/NewsAggregator/domain"
-	"github.com/MatejGadjo/NewsAggregator/internal/logger"
+	"github.com/MatejGadjo/jadro/domain"
+	"github.com/MatejGadjo/jadro/internal/logger"
 	"github.com/gin-gonic/gin"
 )
 

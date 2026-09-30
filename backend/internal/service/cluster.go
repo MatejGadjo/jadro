@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/MatejGadjo/NewsAggregator/internal/logger"
+	"github.com/MatejGadjo/jadro/internal/logger"
 	"github.com/jackc/pgx/v5"
 )
 
