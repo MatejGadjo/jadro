@@ -47,6 +47,9 @@ type JobsConfig struct {
 	IngestCron           string
 	CleanupCron          string
 	CleanupRetentionDays int
+	// IngestOnStart runs one ingest right after startup instead of waiting for
+	// the first cron tick — handy on a fresh install with an empty database.
+	IngestOnStart bool
 }
 
 // PushConfig holds Web Push (VAPID) settings. Push is optional: when the keys
@@ -73,6 +76,9 @@ type CacheConfig struct {
 
 type SecurityConfig struct {
 	AllowedOrigins []string
+	// TrustedProxies are the CIDRs whose X-Forwarded-For is believed when
+	// resolving the client IP (the nginx container's Docker network).
+	TrustedProxies []string
 }
 
 func NewConfig() (*Config, error) {
@@ -105,12 +111,14 @@ func NewConfig() (*Config, error) {
 			IngestCron:           getenvDefault("INGEST_CRON", "*/15 * * * *"),
 			CleanupCron:          getenvDefault("CLEANUP_CRON", "0 3 * * *"),
 			CleanupRetentionDays: int(int32FromEnvDefault("CLEANUP_RETENTION_DAYS", 3)),
+			IngestOnStart:        os.Getenv("INGEST_ON_START") == "true",
 		},
 		Cache: CacheConfig{
 			RedisURL: getenvDefault("REDIS_URL", ""),
 		},
 		Security: SecurityConfig{
 			AllowedOrigins: splitCommaEnv("ALLOWED_ORIGINS"),
+			TrustedProxies: splitCommaEnvDefault("TRUSTED_PROXIES", []string{"172.18.0.0/16"}),
 		},
 		Push: PushConfig{
 			VAPIDPublic:  os.Getenv("VAPID_PUBLIC_KEY"),
@@ -156,6 +164,13 @@ func NewConfig() (*Config, error) {
 	}
 
 	return c, nil
+}
+
+func splitCommaEnvDefault(key string, def []string) []string {
+	if v := splitCommaEnv(key); len(v) > 0 {
+		return v
+	}
+	return def
 }
 
 func splitCommaEnv(key string) []string {

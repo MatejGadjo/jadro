@@ -20,7 +20,9 @@ services:
       APP_ENV: ${APP_ENV:-development}
       LOG_LEVEL: ${LOG_LEVEL:-info}
       ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-}
+      TRUSTED_PROXIES: ${DOCKER_SUBNET:-172.18.0.0/16}
       INGEST_CRON: ${INGEST_CRON:-*/15 * * * *}
+      INGEST_ON_START: ${INGEST_ON_START:-false}
       CLEANUP_CRON: ${CLEANUP_CRON:-0 3 * * *}
       CLEANUP_RETENTION_DAYS: ${CLEANUP_RETENTION_DAYS:-3}
       # Web Push — empty VAPID keys disable push entirely. Set keys (make vapid)
@@ -32,7 +34,8 @@ services:
       PUSH_TIMEZONE: ${PUSH_TIMEZONE:-Europe/Skopje}
       PUSH_MIN_SOURCES: ${PUSH_MIN_SOURCES:-3}
       PUSH_FRESH_HOURS: ${PUSH_FRESH_HOURS:-16}
-      ONNX_RUNTIME_LIB_PATH: /app/models/onnxruntime-linux-x64-1.23.2/lib/libonnxruntime.so
+      # ORT_ARCH=aarch64 on ARM hosts (e.g. Apple Silicon); see scripts/download-models.sh
+      ONNX_RUNTIME_LIB_PATH: /app/models/onnxruntime-linux-${ORT_ARCH:-x64}-1.23.2/lib/libonnxruntime.so
       ONNX_MODEL_PATH: /app/models/paraphrase-multilingual-MiniLM-L12-v2/model.onnx
       ONNX_TOKENIZER_PATH: /app/models/paraphrase-multilingual-MiniLM-L12-v2/tokenizer.json
     volumes:
@@ -81,11 +84,13 @@ volumes:
 
 networks:
   # Pin the default network subnet so it never drifts on a network teardown +
-  # recreate. The backend's SetTrustedProxies (internal/rest/server.go) hardcodes
-  # this range to trust X-Forwarded-For from the nginx container — if Docker
-  # auto-assigned a different subnet, ClientIP() would fall back to the nginx
-  # container IP and per-IP rate limiting would silently collapse to one bucket.
+  # recreate. The backend trusts X-Forwarded-For only from this range
+  # (TRUSTED_PROXIES) — if Docker auto-assigned a different subnet, ClientIP()
+  # would fall back to the nginx container IP and per-IP rate limiting would
+  # silently collapse to one bucket. If 172.18.0.0/16 clashes with another
+  # network on your machine, set DOCKER_SUBNET in .env (and update the
+  # set_real_ip_from line in nginx/nginx.conf to match).
   default:
     ipam:
       config:
-        - subnet: 172.18.0.0/16
+        - subnet: ${DOCKER_SUBNET:-172.18.0.0/16}
