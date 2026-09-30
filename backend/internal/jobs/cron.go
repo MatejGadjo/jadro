@@ -17,15 +17,16 @@ type AfterIngestFunc func(context.Context)
 // replaces the former standalone scheduler binary, which triggered these jobs
 // over HTTP.
 type Cron struct {
-	log         *logger.Logger
-	cron        *cron.Cron
-	ingest      *IngestRunner
-	cleanup     *CleanupJob
-	push        *PushJob
-	afterIngest AfterIngestFunc
-	ingestCron  string
-	cleanupCron string
-	pushCron    string // empty = push disabled (no VAPID keys); not registered
+	log           *logger.Logger
+	cron          *cron.Cron
+	ingest        *IngestRunner
+	cleanup       *CleanupJob
+	push          *PushJob
+	afterIngest   AfterIngestFunc
+	ingestCron    string
+	cleanupCron   string
+	pushCron      string // empty = push disabled (no VAPID keys); not registered
+	ingestOnStart bool
 }
 
 func NewCron(
@@ -39,14 +40,15 @@ func NewCron(
 	afterIngest AfterIngestFunc,
 ) *Cron {
 	c := &Cron{
-		log:         log,
-		cron:        cron.New(),
-		ingest:      ingest,
-		cleanup:     cleanup,
-		push:        push,
-		afterIngest: afterIngest,
-		ingestCron:  cfg.IngestCron,
-		cleanupCron: cfg.CleanupCron,
+		log:           log,
+		cron:          cron.New(),
+		ingest:        ingest,
+		cleanup:       cleanup,
+		push:          push,
+		afterIngest:   afterIngest,
+		ingestCron:    cfg.IngestCron,
+		cleanupCron:   cfg.CleanupCron,
+		ingestOnStart: cfg.IngestOnStart,
 	}
 	if pushCfg.Enabled() {
 		// Pin the daily send to MK local time via a per-entry CRON_TZ prefix so
@@ -80,6 +82,10 @@ func (c *Cron) start() error {
 	c.cron.Start()
 	c.log.Infow("job scheduler started",
 		"ingest_cron", c.ingestCron, "cleanup_cron", c.cleanupCron, "push_cron", c.pushCron)
+	if c.ingestOnStart {
+		c.log.Infow("running initial ingest (INGEST_ON_START=true)")
+		go c.runIngest()
+	}
 	return nil
 }
 

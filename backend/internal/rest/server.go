@@ -2,6 +2,7 @@ package rest
 
 import (
 	"context"
+	"fmt"
 	nethttp "net/http"
 	"time"
 
@@ -35,11 +36,13 @@ func NewServer(
 	prerender *handlers.PrerenderHandler,
 	push *handlers.PushHandler,
 	rl *middleware.RateLimiter,
-) *nethttp.Server {
+) (*nethttp.Server, error) {
 	r := gin.New()
 	// Trust X-Forwarded-For only from the nginx container (Docker bridge subnet).
 	// This makes ClientIP() return the real visitor IP for per-IP rate limiting.
-	_ = r.SetTrustedProxies([]string{"172.18.0.0/16"})
+	if err := r.SetTrustedProxies(cfg.Security.TrustedProxies); err != nil {
+		return nil, fmt.Errorf("invalid TRUSTED_PROXIES: %w", err)
+	}
 	r.Use(middleware.CORS(cfg.Security.AllowedOrigins))
 	r.Use(gin.Recovery())
 	r.Use(middleware.Timeout(handlerTimeout))
@@ -79,5 +82,5 @@ func NewServer(
 		},
 	})
 
-	return srv
+	return srv, nil
 }
