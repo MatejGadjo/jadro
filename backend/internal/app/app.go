@@ -103,6 +103,7 @@ func Initialize() *fx.App {
 			return c
 		}),
 		fx.Provide(service.NewFeedService),
+		fx.Provide(service.NewHTTPImageProber),
 		fx.Provide(service.NewClusterService),
 		fx.Provide(service.NewHealthService),
 

@@ -147,6 +147,10 @@ func NewConfig() (*Config, error) {
 		return nil, fmt.Errorf("VAPID_SUBJECT is required when VAPID keys are set (e.g. mailto:you@example.com)")
 	}
 
+	if c.Env == "production" && len(c.Security.AllowedOrigins) == 0 {
+		log.Printf("warning: ALLOWED_ORIGINS is empty — CORS allows any origin; set it to your site's origin(s)")
+	}
+
 	if c.Env == "production" && !c.Push.Enabled() {
 		log.Printf("warning: VAPID keys not set — Web Push notifications disabled")
 	}

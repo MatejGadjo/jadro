@@ -52,13 +52,14 @@ const (
 
 // ClusterService handles cluster detail and latest article responses.
 type ClusterService struct {
-	store ClusterStore
-	cache Cache
-	log   *logger.Logger
+	store  ClusterStore
+	cache  Cache
+	prober ImageProber
+	log    *logger.Logger
 }
 
-func NewClusterService(store ClusterStore, cache Cache, log *logger.Logger) *ClusterService {
-	return &ClusterService{store: store, cache: cache, log: log}
+func NewClusterService(store ClusterStore, cache Cache, prober ImageProber, log *logger.Logger) *ClusterService {
+	return &ClusterService{store: store, cache: cache, prober: prober, log: log}
 }
 
 func clusterCacheKey(id int64) string {
@@ -108,9 +109,44 @@ func (s *ClusterService) GetLatestArticles(ctx context.Context, limit int) ([]La
 	return out, nil
 }
 
-// ClearArticleImage sets image_url to NULL for an article.
-// Returns pgx.ErrNoRows if the article does not exist.
+// imageProbeCacheTTL is how long a "this image loads fine" verdict is
+// remembered, so repeated reports for the same article don't turn into
+// repeated outbound requests to the publisher.
+const imageProbeCacheTTL = 6 * time.Hour
+
+func imageProbeCacheKey(id int64) string {
+	return fmt.Sprintf("imgprobe:%d", id)
+}
+
+// ClearArticleImage handles a client report that an article's image is broken.
+// The report is only a hint: the image is cleared only when the server's own
+// probe confirms it is broken. Returns pgx.ErrNoRows if the article does not
+// exist or has no image; returns nil (no change) when the image is fine.
 func (s *ClusterService) ClearArticleImage(ctx context.Context, id int64) error {
+	if s.cache != nil {
+		if _, err := s.cache.Get(ctx, imageProbeCacheKey(id)); err == nil {
+			return nil
+		}
+	}
+
+	article, err := s.store.GetArticleByID(ctx, id)
+	if err != nil {
+		return err
+	}
+	if article.ImageURL == nil || *article.ImageURL == "" {
+		return pgx.ErrNoRows
+	}
+
+	if !s.prober.IsBroken(ctx, *article.ImageURL) {
+		if s.cache != nil {
+			if err := s.cache.Set(ctx, imageProbeCacheKey(id), []byte("ok"), imageProbeCacheTTL); err != nil {
+				s.log.Warnw("failed to cache image probe result", "article_id", id, "error", err)
+			}
+		}
+		return nil
+	}
+
+	s.log.Infow("clearing broken article image", "article_id", id, "image_url", *article.ImageURL)
 	return s.store.ClearArticleImageURL(ctx, id)
 }
 
