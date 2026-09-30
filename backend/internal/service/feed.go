@@ -18,7 +18,11 @@ import (
 const feedVersionKey = "meta:feed_version"
 
 const (
-	FeedLimit            = 10
+	FeedLimit = 10
+	// MaxFeedPage bounds ?page= so deep pages can't force expensive OFFSET
+	// scans or flood the cache with one key per page number. 100 pages of 10
+	// is far beyond what the retention window ever holds.
+	MaxFeedPage          = 100
 	featuredClusterCount = 2
 	featuredMaxSources   = 4
 	categoryClusterCount = 3

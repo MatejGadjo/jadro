@@ -20,6 +20,7 @@ type ClusterStore interface {
 	GetArticlesInCluster(ctx context.Context, clusterID int64) ([]domain.Article, error)
 	GetSourceByID(ctx context.Context, id int64) (domain.Source, error)
 	ListLatestArticles(ctx context.Context, limit int32) ([]domain.LatestArticle, error)
+	GetArticleByID(ctx context.Context, id int64) (domain.Article, error)
 	ClearArticleImageURL(ctx context.Context, id int64) error
 	MaxClusterID(ctx context.Context) (int64, error)
 }

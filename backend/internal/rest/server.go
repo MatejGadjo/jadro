@@ -15,8 +15,14 @@ import (
 
 const handlerTimeout = 10 * time.Second
 
+// maxRequestBody comfortably fits a push subscription (endpoint + keys).
+const maxRequestBody = 16 << 10
+
 const (
 	defaultReadHeaderTimeout = 5 * time.Second
+	defaultReadTimeout       = 10 * time.Second
+	defaultIdleTimeout       = 60 * time.Second
+	defaultMaxHeaderBytes    = 32 << 10
 )
 
 func NewServer(
@@ -37,6 +43,7 @@ func NewServer(
 	r.Use(middleware.CORS(cfg.Security.AllowedOrigins))
 	r.Use(gin.Recovery())
 	r.Use(middleware.Timeout(handlerTimeout))
+	r.Use(middleware.BodyLimit(maxRequestBody))
 
 	RegisterRoutes(r, feed, health, cluster, prerender, push, rl)
 
@@ -44,6 +51,9 @@ func NewServer(
 		Addr:              cfg.HTTP.Addr,
 		Handler:           r,
 		ReadHeaderTimeout: defaultReadHeaderTimeout,
+		ReadTimeout:       defaultReadTimeout,
+		IdleTimeout:       defaultIdleTimeout,
+		MaxHeaderBytes:    defaultMaxHeaderBytes,
 	}
 
 	lc.Append(fx.Hook{
