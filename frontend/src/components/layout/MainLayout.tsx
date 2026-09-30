@@ -27,7 +27,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
         {/* Centered content column. NOTE: do not make <main> a grid/flex item
             with an auto inline-margin — that disables `justify-self: stretch`
             and collapses it to its content's max-content width (skeletons go
-            narrow on desktop). When the ad rail returns, wrap in a grid and
+            narrow on desktop). If a side rail is added, wrap in a grid and
             keep `w-full` on <main> so stretch is preserved. */}
         <main className="mx-auto w-full max-w-6xl">
           {children}

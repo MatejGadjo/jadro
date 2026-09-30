@@ -1,16 +1,16 @@
 # Deploying Jadro
 
-This guide runs Jadro on a single small VPS (2 vCPU / 4 GB RAM is plenty) behind Cloudflare. That's the setup jadro.mk uses. Adapt it to your provider.
+Jadro is a plain Docker Compose stack, so it runs on any machine with Docker: a VPS from any provider, a home server, or a cloud VM. This guide describes a single small server (2 vCPU / 4 GB RAM is plenty) with a TLS proxy on the host. A CDN in front is optional but recommended for public instances.
 
 ```
-visitor ─▶ Cloudflare (DNS proxy, WAF, cache) ─▶ VPS :443 host nginx (TLS) ─▶ 127.0.0.1:8000 docker nginx ─▶ backend / frontend
+visitor ─▶ [optional CDN / WAF] ─▶ server :443 host proxy (TLS) ─▶ 127.0.0.1:8000 docker nginx ─▶ backend / frontend
 ```
 
 ## 1. Server
 
 1. Ubuntu LTS with Docker Engine + Compose v2 installed.
 2. Create a non-root user for deploys, and log in with SSH keys only (`PasswordAuthentication no`, `PermitRootLogin no`).
-3. **Firewall:** allow SSH only from your own IP (or use Tailscale/WireGuard), and allow 80/443 **only from [Cloudflare's IP ranges](https://www.cloudflare.com/ips/)**. Otherwise anyone who finds the server IP can bypass Cloudflare's protection. Use your provider's cloud firewall or `ufw`. Cloudflare Tunnel (no open ports at all) is an even stronger option.
+3. **Firewall:** allow SSH only from your own IP (or use Tailscale/WireGuard). Open 80/443 to everyone if you have no CDN. If you use a CDN, open them **only to the CDN's published IP ranges**, otherwise anyone who finds the server IP can bypass it. Use your provider's cloud firewall or `ufw`.
 4. Enable unattended security upgrades.
 
 ## 2. App
@@ -39,7 +39,7 @@ For analytics, put `VITE_GA_MEASUREMENT_ID=G-…` in `frontend/.env` before buil
 
 ## 3. TLS proxy on the host
 
-Terminate TLS on the host (nginx + certbot, or a Cloudflare Origin Certificate) and proxy to `127.0.0.1:8000`. **Append** to `X-Forwarded-For` so the container can recover the real visitor IP:
+Terminate TLS on the host (nginx + certbot, Caddy, Traefik, or your CDN's origin certificate) and proxy to `127.0.0.1:8000`. **Append** to `X-Forwarded-For` so the container can recover the real visitor IP:
 
 ```nginx
 server {
@@ -58,15 +58,18 @@ server {
 }
 ```
 
-The container's `nginx/nginx.conf` trusts the Docker network and Cloudflare's ranges and walks `X-Forwarded-For` from the right. If you use a different CDN, add its ranges as `set_real_ip_from` lines there, otherwise every visitor behind the same CDN node shares one rate-limit bucket.
+The container's `nginx/nginx.conf` trusts only the Docker network by default and walks `X-Forwarded-For` from the right to find the real visitor.
 
-## 4. Cloudflare
+## 4. A CDN in front (optional)
 
-- DNS records proxied (orange cloud), SSL mode **Full (strict)**.
-- **Security → WAF → Rate limiting rule** on `/api/*` (for example 100 requests / 10 s per IP → block) as an outer layer in front of nginx.
-- Bot Fight Mode on. Keep **Under Attack Mode** in mind as the emergency switch.
-- Cache rules: static assets (`/assets/*`) cache everything. The API is not cached at the edge (Redis handles that).
-- Refresh the `set_real_ip_from` list in `nginx/nginx.conf` occasionally from https://www.cloudflare.com/ips/.
+Any CDN or reverse-proxy service works: Cloudflare, Bunny, Fastly, CloudFront, and so on. Whichever you use:
+
+1. **Trust its IP ranges** so rate limits apply per visitor, not per CDN node. Drop a `*.conf` file into `nginx/real-ip.d/` (see [its README](../nginx/real-ip.d/README.md)). A ready-made Cloudflare file ships as `cloudflare.conf.example`.
+2. **Lock the origin** firewall to the CDN's ranges (step 1.3).
+3. **Add an edge rate limit** on `/api/*` (for example 100 requests / 10 s per IP) as an outer layer in front of nginx, and turn on the provider's bot protection.
+4. **Cache** static assets (`/assets/*`) at the edge. Don't cache `/api/*` there, because Redis handles that.
+
+Without a CDN, nginx's own per-IP limits still apply. You just have less protection against large-scale traffic.
 
 ## 5. Continuous deployment (optional)
 
@@ -90,10 +93,10 @@ Protect it with a GitHub **Environment** named `production` that has required re
 
 ## Security checklist
 
-- [ ] Origin firewall allows 80/443 only from your CDN, and SSH only from you
+- [ ] SSH only from you; with a CDN, origin 80/443 only from the CDN
 - [ ] `APP_ENV=production`, strong `POSTGRES_PASSWORD`, `ALLOWED_ORIGINS` set
 - [ ] Postgres/Redis/nginx ports still bound to `127.0.0.1`
-- [ ] Host proxy appends `X-Forwarded-For`; `nginx/nginx.conf` trusts your CDN ranges
-- [ ] CDN rate-limiting rule on `/api/*`
+- [ ] Host proxy appends `X-Forwarded-For`; with a CDN, its ranges are in `nginx/real-ip.d/`
+- [ ] With a CDN, an edge rate-limiting rule on `/api/*`
 - [ ] Branch protection + protected `production` environment if you use the deploy workflow
 - [ ] Backups run and have been restored at least once

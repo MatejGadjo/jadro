@@ -131,7 +131,7 @@ Making this configurable through "locale packs" is the first item on the roadmap
 
 ## Deploying
 
-A generic guide for a single VPS behind Cloudflare is in [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md). Please read the security checklist in it before exposing an instance to the internet.
+A generic guide for a single server (with or without a CDN in front) is in [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md). Please read the security checklist in it before exposing an instance to the internet.
 
 ## Content and takedowns
 

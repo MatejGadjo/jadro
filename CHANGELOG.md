@@ -14,7 +14,7 @@ All notable changes to this project are documented here. The format follows
 - Configurable host ports, Docker subnet, trusted proxies and ONNX Runtime
   architecture (x64 / aarch64).
 - nginx per-IP rate and connection limits, real client IP resolution behind
-  proxies and Cloudflare.
+  the host proxy and an optional CDN (`nginx/real-ip.d/`).
 - Frontend unit tests (Vitest), golangci-lint configuration, CI for lint,
   tests, vulnerability and secret scanning.
 - Open-source project files: license, contributing guide, security policy,

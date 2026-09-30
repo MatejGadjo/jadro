@@ -47,24 +47,15 @@
 - Tailwind CSS only; use `clsx` + `tailwind-merge` for conditional classes.
 - Icons from lucide-react only; dates via date-fns only.
 - No heavy animations.
-- Layout (current): header + main feed column + right-side ad rail on desktop.
+- Layout: header + centered main feed column + footer.
 - No topic sidebar in this UI.
-
-## Ads (locked rules, updated)
-- Ads are explicit components only; no injected HTML.
-- All ads go through a single `AdSlot` abstraction.
-- Ad styles used: horizontal/leaderboard and right-rail tiles only.
-- Right rail has two stacked ads on desktop; hidden on mobile.
-- Inline ads appear after every N clusters (start N=4), never splitting a cluster card.
-- Cluster detail: max 2 ads (after headline/meta and after sources list).
-- Mobile: no sticky bottom ads, no interstitials, inline only, max 1 ad per screen height.
 
 ## Intentionally absent
 - No login, accounts, or personalization.
 - No infinite scroll.
 - No topic sidebar.
 - No client-side clustering or ranking (backend is authoritative).
-- No sticky bottom ads, interstitials, or injected HTML ads.
+- No ads or ad slots of any kind.
 - Do not add any of the above without explicit instruction.
 
 ## Code quality
