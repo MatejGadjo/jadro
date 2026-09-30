@@ -6,6 +6,8 @@ It reads RSS feeds, embeds each headline with a multilingual sentence model, clu
 
 **Live deployment:** [jadro.mk](https://jadro.mk), covering Macedonian news from 70+ sources.
 
+![Jadro homepage: a story covered by several outlets, with the latest-news sidebar](docs/screenshot.png)
+
 [![Tests](https://github.com/MatejGadjo/jadro/actions/workflows/test.yml/badge.svg)](https://github.com/MatejGadjo/jadro/actions/workflows/test.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
