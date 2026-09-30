@@ -1,8 +1,39 @@
+# Environment / secrets — only *.example files are committed
 .env
-.env.local
+.env.*
+!.env.example
+.envrc
+
+# Local overrides
 docker-compose.override.yml
+*.local.json
+
+# Personal AI tool settings (shared AGENTS.md / CLAUDE.md are committed)
+.claude/
+**/.claude/settings.local.json
+
+# ML models and ONNX runtime — large binaries, fetched by `make models`
+backend/models/
+
+# Build output
+backend/bin/
+frontend/dist/
+node_modules/
+stats.html
+coverage/
+coverage.out
+coverage.html
+
+# Private deployment notes (keep these outside the repo)
 PRODUCTION.md
-GOOGLE_ANALYTICS.md
 CLOUDFLARE.md
+GOOGLE_ANALYTICS.md
 marketing.md
 creator_outreach.csv
+
+# Editors / OS
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db

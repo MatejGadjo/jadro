@@ -115,7 +115,7 @@ func NewConfig() (*Config, error) {
 		Push: PushConfig{
 			VAPIDPublic:  os.Getenv("VAPID_PUBLIC_KEY"),
 			VAPIDPrivate: os.Getenv("VAPID_PRIVATE_KEY"),
-			VAPIDSubject: getenvDefault("VAPID_SUBJECT", "mailto:kontakt@jadro.mk"),
+			VAPIDSubject: os.Getenv("VAPID_SUBJECT"),
 			Cron:         getenvDefault("PUSH_CRON", "0 9 * * *"),
 			Timezone:     getenvDefault("PUSH_TIMEZONE", "Europe/Skopje"),
 			MinSources:   int(int32FromEnvDefault("PUSH_MIN_SOURCES", 3)),
@@ -141,6 +141,10 @@ func NewConfig() (*Config, error) {
 
 	if c.Push.FreshHours < 1 {
 		c.Push.FreshHours = 16
+	}
+
+	if c.Push.Enabled() && c.Push.VAPIDSubject == "" {
+		return nil, fmt.Errorf("VAPID_SUBJECT is required when VAPID keys are set (e.g. mailto:you@example.com)")
 	}
 
 	if c.Env == "production" && !c.Push.Enabled() {
