@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/MatejGadjo/NewsAggregator/internal/logger"
+	"github.com/MatejGadjo/jadro/internal/logger"
 	"github.com/gin-gonic/gin"
 )
 

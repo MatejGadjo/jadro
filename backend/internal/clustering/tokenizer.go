@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/MatejGadjo/NewsAggregator/internal/logger"
+	"github.com/MatejGadjo/jadro/internal/logger"
 	"github.com/sugarme/tokenizer"
 	"github.com/sugarme/tokenizer/pretrained"
 )

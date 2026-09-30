@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/MatejGadjo/NewsAggregator/domain"
+	"github.com/MatejGadjo/jadro/domain"
 )
 
 type FeedStore interface {

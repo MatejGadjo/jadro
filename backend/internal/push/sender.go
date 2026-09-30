@@ -5,7 +5,7 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/MatejGadjo/NewsAggregator/domain"
+	"github.com/MatejGadjo/jadro/domain"
 	webpush "github.com/SherClockHolmes/webpush-go"
 )
 

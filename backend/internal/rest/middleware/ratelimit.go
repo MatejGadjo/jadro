@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/MatejGadjo/NewsAggregator/internal/cache"
+	"github.com/MatejGadjo/jadro/internal/cache"
 	"github.com/gin-gonic/gin"
 	"github.com/go-redis/redis_rate/v10"
 )

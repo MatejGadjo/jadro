@@ -5,10 +5,10 @@ import (
 	nethttp "net/http"
 	"time"
 
-	"github.com/MatejGadjo/NewsAggregator/internal/config"
-	"github.com/MatejGadjo/NewsAggregator/internal/logger"
-	"github.com/MatejGadjo/NewsAggregator/internal/rest/handlers"
-	"github.com/MatejGadjo/NewsAggregator/internal/rest/middleware"
+	"github.com/MatejGadjo/jadro/internal/config"
+	"github.com/MatejGadjo/jadro/internal/logger"
+	"github.com/MatejGadjo/jadro/internal/rest/handlers"
+	"github.com/MatejGadjo/jadro/internal/rest/middleware"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/fx"
 )

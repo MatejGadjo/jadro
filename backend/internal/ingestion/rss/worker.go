@@ -8,11 +8,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/MatejGadjo/NewsAggregator/domain"
-	"github.com/MatejGadjo/NewsAggregator/internal/ingestion/normalize"
-	"github.com/MatejGadjo/NewsAggregator/internal/jobs"
-	"github.com/MatejGadjo/NewsAggregator/internal/logger"
-	"github.com/MatejGadjo/NewsAggregator/internal/topics"
+	"github.com/MatejGadjo/jadro/domain"
+	"github.com/MatejGadjo/jadro/internal/ingestion/normalize"
+	"github.com/MatejGadjo/jadro/internal/jobs"
+	"github.com/MatejGadjo/jadro/internal/logger"
+	"github.com/MatejGadjo/jadro/internal/topics"
 	"github.com/alitto/pond/v2"
 	"github.com/mmcdole/gofeed"
 )

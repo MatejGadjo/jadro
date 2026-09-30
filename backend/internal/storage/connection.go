@@ -5,9 +5,9 @@ import (
 	"embed"
 	"time"
 
-	"github.com/MatejGadjo/NewsAggregator/internal/config"
-	"github.com/MatejGadjo/NewsAggregator/internal/logger"
-	"github.com/MatejGadjo/NewsAggregator/internal/storage/sqlc"
+	"github.com/MatejGadjo/jadro/internal/config"
+	"github.com/MatejGadjo/jadro/internal/logger"
+	"github.com/MatejGadjo/jadro/internal/storage/sqlc"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jackc/pgx/v5/stdlib"
 	"github.com/pressly/goose/v3"

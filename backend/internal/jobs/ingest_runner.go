@@ -5,7 +5,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/MatejGadjo/NewsAggregator/internal/logger"
+	"github.com/MatejGadjo/jadro/internal/logger"
 )
 
 // IngestFunc is called by IngestRunner to fetch and process new articles.

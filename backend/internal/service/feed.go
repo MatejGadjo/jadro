@@ -10,9 +10,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/MatejGadjo/NewsAggregator/domain"
-	"github.com/MatejGadjo/NewsAggregator/internal/logger"
-	"github.com/MatejGadjo/NewsAggregator/internal/topics"
+	"github.com/MatejGadjo/jadro/domain"
+	"github.com/MatejGadjo/jadro/internal/logger"
+	"github.com/MatejGadjo/jadro/internal/topics"
 )
 
 const feedVersionKey = "meta:feed_version"

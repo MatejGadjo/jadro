@@ -1,4 +1,4 @@
-module github.com/MatejGadjo/NewsAggregator
+module github.com/MatejGadjo/jadro
 
 go 1.25.7
 

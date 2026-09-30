@@ -5,8 +5,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/MatejGadjo/NewsAggregator/internal/config"
-	"github.com/MatejGadjo/NewsAggregator/internal/logger"
+	"github.com/MatejGadjo/jadro/internal/config"
+	"github.com/MatejGadjo/jadro/internal/logger"
 )
 
 // CleanupJob deletes articles older than the retention window and any clusters

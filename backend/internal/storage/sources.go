@@ -3,8 +3,8 @@ package storage
 import (
 	"context"
 
-	"github.com/MatejGadjo/NewsAggregator/domain"
-	"github.com/MatejGadjo/NewsAggregator/internal/storage/sqlc"
+	"github.com/MatejGadjo/jadro/domain"
+	"github.com/MatejGadjo/jadro/internal/storage/sqlc"
 )
 
 func (c *Client) DisableSource(ctx context.Context, id int64) error {
