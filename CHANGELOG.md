@@ -6,6 +6,11 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+- Go 1.26 (toolchain go1.26.8): fixes 25 standard-library vulnerabilities
+  reported by govulncheck for 1.26.0; dependencies updated (minor/patch).
+- `onnxruntime_go` stays at v1.25.x to match ONNX Runtime 1.23.2.
+
 ## [0.1.0] - First public release
 
 ### Added

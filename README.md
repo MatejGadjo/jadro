@@ -39,7 +39,7 @@ It reads RSS feeds, embeds each headline with a multilingual sentence model, clu
 
 | Layer | Tech |
 |---|---|
-| Backend | Go 1.25, Gin, uber/fx, pgx + sqlc, goose migrations, robfig/cron |
+| Backend | Go 1.26, Gin, uber/fx, pgx + sqlc, goose migrations, robfig/cron |
 | ML | ONNX Runtime + `paraphrase-multilingual-MiniLM-L12-v2` (50+ languages) |
 | Data | PostgreSQL 17 + pgvector, Redis 7 |
 | Frontend | React 19, Vite, TanStack Router + Query, Tailwind, shadcn/ui, zod |

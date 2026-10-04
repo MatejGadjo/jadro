@@ -14,7 +14,7 @@ Follow the Quick start in the [README](README.md) (`make setup && make models &&
 
 Tooling:
 
-- Go 1.25+, and [golangci-lint v2](https://golangci-lint.run/welcome/install/) for `make lint`
+- Go 1.26+ (newer patch versions are fetched automatically via the `toolchain` line in go.mod), and [golangci-lint v2](https://golangci-lint.run/welcome/install/) for `make lint`
 - Node 20+ (CI uses 24)
 - [sqlc](https://docs.sqlc.dev/en/latest/overview/install.html), only if you change SQL queries
 
