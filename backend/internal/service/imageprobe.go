@@ -3,13 +3,13 @@ package service
 import (
 	"context"
 	"errors"
-	"fmt"
 	"net"
 	"net/http"
 	"net/url"
 	"strings"
-	"syscall"
 	"time"
+
+	"github.com/MatejGadjo/jadro/internal/safehttp"
 )
 
 const (
@@ -17,8 +17,6 @@ const (
 	imageProbeMaxRedirects = 3
 	imageProbeUserAgent    = "JadroImageCheck/1.0 (+https://github.com/MatejGadjo/jadro)"
 )
-
-var errBlockedAddress = errors.New("image probe: blocked non-public address")
 
 // ImageProber reports whether a remote image is definitively broken. It is the
 // server-side check behind the public "clear image" endpoint: clients only
@@ -39,44 +37,11 @@ func NewHTTPImageProber() ImageProber {
 }
 
 func newHTTPImageProber(allowPrivate bool) *httpImageProber {
-	dialer := &net.Dialer{
-		Timeout: imageProbeTimeout,
-		Control: func(_, address string, _ syscall.RawConn) error {
-			if allowPrivate {
-				return nil
-			}
-			host, _, err := net.SplitHostPort(address)
-			if err != nil {
-				return err
-			}
-			if ip := net.ParseIP(host); ip == nil || !isPublicIP(ip) {
-				return errBlockedAddress
-			}
-			return nil
-		},
-	}
-	transport := &http.Transport{
-		DialContext:           dialer.DialContext,
-		TLSHandshakeTimeout:   imageProbeTimeout,
-		ResponseHeaderTimeout: imageProbeTimeout,
-		MaxIdleConns:          10,
-		IdleConnTimeout:       30 * time.Second,
-	}
-	return &httpImageProber{client: &http.Client{
-		Transport: transport,
-		Timeout:   imageProbeTimeout,
-		CheckRedirect: func(_ *http.Request, via []*http.Request) error {
-			if len(via) >= imageProbeMaxRedirects {
-				return fmt.Errorf("image probe: too many redirects")
-			}
-			return nil
-		},
-	}}
-}
-
-func isPublicIP(ip net.IP) bool {
-	return ip.IsGlobalUnicast() && !ip.IsPrivate() && !ip.IsLoopback() &&
-		!ip.IsLinkLocalUnicast() && !ip.IsUnspecified()
+	return &httpImageProber{client: safehttp.NewClient(safehttp.Options{
+		Timeout:      imageProbeTimeout,
+		MaxRedirects: imageProbeMaxRedirects,
+		AllowPrivate: allowPrivate,
+	})}
 }
 
 // IsBroken is deliberately conservative: only answers that a browser would

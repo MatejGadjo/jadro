@@ -5,17 +5,27 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/MatejGadjo/jadro/internal/safehttp"
 	"github.com/go-resty/resty/v2"
 	"github.com/mmcdole/gofeed"
 )
 
+// maxFeedBytes caps a feed response; real feeds are well under 1 MiB.
+const maxFeedBytes = 10 << 20
+
+// feedClient only connects to public addresses, so a compromised publisher
+// can't redirect the fetcher to services on this host or its private network.
+var feedClient = resty.NewWithClient(safehttp.NewClient(safehttp.Options{
+	Timeout:      10 * time.Second,
+	MaxRedirects: 5,
+})).
+	SetHeader("User-Agent", "Jadro/1.0 (RSS reader; +https://github.com/MatejGadjo/jadro)").
+	SetResponseBodyLimit(maxFeedBytes)
+
 // fetchRSSFeed fetches and parses an RSS feed from the given URL.
-// It uses resty with a 5-second timeout and sets a clear User-Agent.
 // Returns the parsed feed or an error.
 func fetchRSSFeed(rssURL string) (*gofeed.Feed, error) {
-	client := resty.New()
-	client.SetTimeout(10 * time.Second)
-	client.SetHeader("User-Agent", "NewsAggregator/1.0 (RSS Feed Reader)")
+	client := feedClient
 
 	resp, err := client.R().Get(rssURL)
 	if err != nil {
