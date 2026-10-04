@@ -14,6 +14,9 @@ updates:
     ignore:
       - dependency-name: "*"
         update-types: ["version-update:semver-major"]
+      # Each release targets one ONNX Runtime version; upgrade it together
+      # with ORT_VERSION in scripts/download-models.sh, never on its own.
+      - dependency-name: "github.com/yalue/onnxruntime_go"
 
   - package-ecosystem: npm
     directory: /frontend
