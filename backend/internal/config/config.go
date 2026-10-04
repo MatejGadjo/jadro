@@ -152,7 +152,10 @@ func NewConfig() (*Config, error) {
 	}
 
 	if c.Push.Enabled() && c.Push.VAPIDSubject == "" {
-		return nil, fmt.Errorf("VAPID_SUBJECT is required when VAPID keys are set (e.g. mailto:you@example.com)")
+		// Push services reject notifications without a contact, so disable
+		// push rather than fail every send (or crash on startup).
+		log.Printf("warning: VAPID keys are set but VAPID_SUBJECT is empty — Web Push disabled; set it to your site URL or mailto: address")
+		c.Push.VAPIDPublic, c.Push.VAPIDPrivate = "", ""
 	}
 
 	if c.Env == "production" && len(c.Security.AllowedOrigins) == 0 {

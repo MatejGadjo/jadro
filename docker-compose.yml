@@ -37,7 +37,7 @@ services:
       # in the root .env to enable. PUSH_CRON is evaluated in PUSH_TIMEZONE.
       VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
       VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
-      VAPID_SUBJECT: ${VAPID_SUBJECT:-mailto:kontakt@jadro.mk}
+      VAPID_SUBJECT: ${VAPID_SUBJECT:-}
       PUSH_CRON: ${PUSH_CRON:-0 9 * * *}
       PUSH_TIMEZONE: ${PUSH_TIMEZONE:-Europe/Skopje}
       PUSH_MIN_SOURCES: ${PUSH_MIN_SOURCES:-3}

@@ -111,24 +111,16 @@ export default function AboutPage() {
           </div>
         </section>
 
-        {/* Контакт */}
+        {/* Повеќе */}
         <section className="border-t-2 border-foreground pt-6">
           <p
             className="text-[10px] uppercase tracking-[0.28em] text-muted-foreground mb-3"
             style={{ fontFamily: 'var(--font-mono)' }}
           >
-            Контакт
+            Повеќе
           </p>
           <p className="text-[15px] leading-relaxed text-foreground/85">
-            За соработка, исправки или прашања, пишете ни на{' '}
-            <a
-              href="mailto:kontakt@jadro.mk"
-              className="text-editorial hover:underline underline-offset-4"
-              style={{ fontFamily: 'var(--font-mono)' }}
-            >
-              kontakt@jadro.mk
-            </a>
-            . Прочитајте ги и нашите{' '}
+            Прочитајте ги нашите{' '}
             <Link to="/terms" className="text-editorial hover:underline underline-offset-4">
               услови
             </Link>{' '}

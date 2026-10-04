@@ -137,7 +137,7 @@ A generic guide for a single server (with or without a CDN in front) is in [docs
 
 ## Content and takedowns
 
-Jadro stores and shows only headlines, short snippets, thumbnail links and links back to the original articles. All content belongs to its publishers. If you run a public instance, honour publishers' requests to be removed. For jadro.mk, contact the address on its About page.
+Jadro stores and shows only headlines, short snippets, thumbnail links and links back to the original articles. All content belongs to its publishers. If you run a public instance, honour publishers' requests to be removed. For jadro.mk, open an issue on this repository.
 
 ## Contributing and security
 
