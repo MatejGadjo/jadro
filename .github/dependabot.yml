@@ -1,23 +1,60 @@
+# Dependabot opens at most one grouped PR per ecosystem per run. Major
+# versions are ignored here and upgraded deliberately, one at a time, because
+# every merge to master deploys to production. Security alerts still show up
+# under Security → Dependabot.
 version: 2
 updates:
   - package-ecosystem: gomod
     directory: /backend
-    schedule: { interval: weekly }
+    schedule: { interval: weekly, day: monday }
+    open-pull-requests-limit: 2
     groups:
-      go-minor:
-        update-types: [minor, patch]
+      go-deps:
+        patterns: ["*"]
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+
   - package-ecosystem: npm
     directory: /frontend
-    schedule: { interval: weekly }
+    schedule: { interval: weekly, day: monday }
+    open-pull-requests-limit: 2
     groups:
-      npm-minor:
-        update-types: [minor, patch]
+      npm-deps:
+        patterns: ["*"]
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+
   - package-ecosystem: github-actions
     directory: /
     schedule: { interval: monthly }
+    open-pull-requests-limit: 1
+    groups:
+      actions:
+        patterns: ["*"]
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+
   - package-ecosystem: docker
     directories: [/backend, /frontend]
     schedule: { interval: monthly }
+    open-pull-requests-limit: 1
+    groups:
+      docker-images:
+        patterns: ["*"]
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+
   - package-ecosystem: docker-compose
     directory: /
     schedule: { interval: monthly }
+    open-pull-requests-limit: 1
+    groups:
+      compose-images:
+        patterns: ["*"]
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
