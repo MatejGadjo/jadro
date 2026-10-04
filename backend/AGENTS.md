@@ -1,7 +1,7 @@
 # Jadro backend: guide for AI coding agents
 
 ## Tech stack
-- **Language**: Go 1.25
+- **Language**: Go 1.26 (toolchain pinned in go.mod; Docker builder `golang:1.26`)
 - **HTTP**: Gin
 - **DI**: uber/fx (wired in `internal/app/app.go`)
 - **Logging**: uber/zap
