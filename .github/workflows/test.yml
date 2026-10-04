@@ -66,6 +66,19 @@ jobs:
       - name: npm audit (runtime deps)
         run: npm audit --omit=dev --audit-level=high
 
+  docker:
+    name: Docker images build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      # Catches what unit tests can't: e.g. a dependency bump that needs a
+      # newer Go than the Dockerfile's builder image, which would only fail
+      # during the production deploy.
+      - name: Build backend image
+        run: docker build -t jadro-backend ./backend
+      - name: Build frontend image
+        run: docker build -t jadro-frontend ./frontend
+
   secrets:
     name: Secret scan
     runs-on: ubuntu-latest
