@@ -14,6 +14,8 @@ permissions:
 jobs:
   analyze:
     name: Analyze (${{ matrix.language }})
+    # Code scanning is free for public repos only; skip while private.
+    if: ${{ !github.event.repository.private }}
     runs-on: ubuntu-latest
     permissions:
       security-events: write
