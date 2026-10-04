@@ -10,6 +10,8 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+
+	"github.com/MatejGadjo/jadro/internal/urlutil"
 )
 
 const (
@@ -182,7 +184,7 @@ func newClassifier(
 			classifier.forcedFeeds = append(classifier.forcedFeeds, forcedFeedRule{key: key, category: category})
 			continue
 		}
-		domain := normalizeDomain(rawKey)
+		domain := urlutil.Domain(rawKey)
 		if domain == "" {
 			return nil, fmt.Errorf("invalid forced source domain %q", rawKey)
 		}
@@ -267,7 +269,7 @@ func normalizeDomainList(rawDomains []string) []string {
 	unique := make(map[string]struct{}, len(rawDomains))
 	out := make([]string, 0, len(rawDomains))
 	for _, rawDomain := range rawDomains {
-		domain := normalizeDomain(rawDomain)
+		domain := urlutil.Domain(rawDomain)
 		if domain == "" {
 			continue
 		}
@@ -332,31 +334,6 @@ func parseTopic(raw string) (Topic, bool) {
 	default:
 		return "", false
 	}
-}
-
-func normalizeDomain(raw string) string {
-	trimmed := strings.TrimSpace(strings.ToLower(raw))
-	if trimmed == "" {
-		return ""
-	}
-
-	if strings.Contains(trimmed, "://") {
-		if parsed, err := url.Parse(trimmed); err == nil {
-			trimmed = parsed.Host
-		}
-	}
-
-	if strings.Contains(trimmed, "/") {
-		if parsed, err := url.Parse("https://" + trimmed); err == nil && parsed.Host != "" {
-			trimmed = parsed.Host
-		}
-	}
-
-	if host, _, err := net.SplitHostPort(trimmed); err == nil {
-		trimmed = host
-	}
-
-	return strings.TrimPrefix(trimmed, "www.")
 }
 
 // normalizeSourceKey normalizes a URL (or bare host/path) to "host/path"
@@ -486,22 +463,22 @@ func classificationResult(category Topic, confidence float64, method CategoryMet
 }
 
 func resolveDomain(input ClassificationInput) string {
-	if domain := normalizeDomain(input.Domain); domain != "" {
+	if domain := urlutil.Domain(input.Domain); domain != "" {
 		return domain
 	}
 	if parsed, err := url.Parse(input.URL); err == nil {
-		if domain := normalizeDomain(parsed.Host); domain != "" {
+		if domain := urlutil.Domain(parsed.Host); domain != "" {
 			return domain
 		}
 	}
-	if feedDomain := normalizeDomain(input.FeedURL); feedDomain != "" {
+	if feedDomain := urlutil.Domain(input.FeedURL); feedDomain != "" {
 		return feedDomain
 	}
 	return ""
 }
 
 func isMacedonianDomain(domain string) bool {
-	normalized := normalizeDomain(domain)
+	normalized := urlutil.Domain(domain)
 	if normalized == "" {
 		return false
 	}

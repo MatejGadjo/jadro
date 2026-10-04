@@ -3,7 +3,7 @@ package push
 import (
 	"context"
 
-	"github.com/MatejGadjo/NewsAggregator/domain"
+	"github.com/MatejGadjo/jadro/domain"
 )
 
 // Store persists subscriptions and the daily send log.

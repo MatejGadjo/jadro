@@ -4,8 +4,8 @@ import (
 	"context"
 	"testing"
 
-	"github.com/MatejGadjo/NewsAggregator/internal/config"
-	"github.com/MatejGadjo/NewsAggregator/internal/logger"
+	"github.com/MatejGadjo/jadro/internal/config"
+	"github.com/MatejGadjo/jadro/internal/logger"
 )
 
 func TestNewEmbeddingGenerator(t *testing.T) {

@@ -3,7 +3,7 @@ package clustering
 import (
 	"testing"
 
-	"github.com/MatejGadjo/NewsAggregator/internal/logger"
+	"github.com/MatejGadjo/jadro/internal/logger"
 )
 
 func TestLoadTokenizer(t *testing.T) {

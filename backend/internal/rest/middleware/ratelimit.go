@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/MatejGadjo/NewsAggregator/internal/cache"
+	"github.com/MatejGadjo/jadro/internal/cache"
 	"github.com/gin-gonic/gin"
 	"github.com/go-redis/redis_rate/v10"
 )
@@ -52,7 +52,7 @@ func (rl *RateLimiter) limit(limit redis_rate.Limit, failClosed bool) gin.Handle
 			c.Next()
 			return
 		}
-		c.Header("X-RateLimit-Limit", strconv.Itoa(int(limit.Rate)))
+		c.Header("X-RateLimit-Limit", strconv.Itoa(limit.Rate))
 		c.Header("X-RateLimit-Remaining", strconv.Itoa(res.Remaining))
 		if res.Allowed == 0 {
 			c.Header("Retry-After", strconv.Itoa(int(res.RetryAfter.Seconds())))

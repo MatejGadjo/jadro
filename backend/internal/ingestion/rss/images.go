@@ -6,7 +6,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/MatejGadjo/NewsAggregator/domain"
+	"github.com/MatejGadjo/jadro/domain"
 	"github.com/mmcdole/gofeed"
 )
 

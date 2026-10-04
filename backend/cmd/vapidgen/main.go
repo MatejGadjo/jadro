@@ -22,5 +22,5 @@ func main() {
 	}
 	fmt.Printf("VAPID_PUBLIC_KEY=%s\n", pub)
 	fmt.Printf("VAPID_PRIVATE_KEY=%s\n", priv)
-	fmt.Println("VAPID_SUBJECT=mailto:kontakt@jadro.mk")
+	fmt.Println("VAPID_SUBJECT=https://example.com")
 }

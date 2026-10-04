@@ -8,12 +8,12 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/MatejGadjo/NewsAggregator/internal/logger"
+	"github.com/MatejGadjo/jadro/internal/logger"
 	"github.com/gin-gonic/gin"
 )
 
 // canonicalBaseURL is the apex origin used for canonical/og URLs. The www host
-// 301s here (see PRODUCTION.md). Keep in sync if the domain changes.
+// should 301 here. Keep in sync if the domain changes.
 const canonicalBaseURL = "https://jadro.mk"
 
 // defaultOGImage is the fallback share image when a cluster has no article image.

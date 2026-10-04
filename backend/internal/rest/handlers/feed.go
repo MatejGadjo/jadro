@@ -5,7 +5,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/MatejGadjo/NewsAggregator/internal/topics"
+	"github.com/MatejGadjo/jadro/internal/service"
+	"github.com/MatejGadjo/jadro/internal/topics"
 	"github.com/gin-gonic/gin"
 )
 
@@ -32,9 +33,12 @@ func (h *FeedHandler) GetFeed(c *gin.Context) {
 
 	page := 0
 	if p := strings.TrimSpace(c.Query("page")); p != "" {
-		if n, err := strconv.Atoi(p); err == nil && n > 0 {
-			page = n
+		n, err := strconv.Atoi(p)
+		if err != nil || n < 0 || n > service.MaxFeedPage {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid page"})
+			return
 		}
+		page = n
 	}
 
 	raw, err := h.svc.GetFeed(ctx, topicFilter, page)

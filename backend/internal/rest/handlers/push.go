@@ -6,8 +6,8 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/MatejGadjo/NewsAggregator/domain"
-	"github.com/MatejGadjo/NewsAggregator/internal/logger"
+	"github.com/MatejGadjo/jadro/domain"
+	"github.com/MatejGadjo/jadro/internal/logger"
 	"github.com/gin-gonic/gin"
 )
 
@@ -66,6 +66,13 @@ func (h *PushHandler) GetConfig(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"vapidPublicKey": h.vapidPublic})
 }
 
+// Real endpoints are a few hundred bytes and keys under 100; the caps keep
+// junk subscriptions from bloating the table.
+const (
+	maxEndpointLen = 1024
+	maxKeyLen      = 256
+)
+
 type subscribeRequest struct {
 	Endpoint string `json:"endpoint"`
 	Keys     struct {
@@ -86,6 +93,10 @@ func (h *PushHandler) Subscribe(c *gin.Context) {
 		return
 	}
 	if strings.TrimSpace(req.Endpoint) == "" || req.Keys.P256dh == "" || req.Keys.Auth == "" {
+		c.Status(http.StatusBadRequest)
+		return
+	}
+	if len(req.Endpoint) > maxEndpointLen || len(req.Keys.P256dh) > maxKeyLen || len(req.Keys.Auth) > maxKeyLen {
 		c.Status(http.StatusBadRequest)
 		return
 	}

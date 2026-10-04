@@ -8,8 +8,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/MatejGadjo/NewsAggregator/internal/config"
-	"github.com/MatejGadjo/NewsAggregator/internal/logger"
+	"github.com/MatejGadjo/jadro/internal/config"
+	"github.com/MatejGadjo/jadro/internal/logger"
 	ort "github.com/yalue/onnxruntime_go"
 )
 
@@ -29,21 +29,23 @@ type onnxResources struct {
 	outputTensor        *ort.Tensor[float32]
 }
 
+// destroy releases ONNX handles; errors are ignored because this is best-effort
+// cleanup on shutdown or after a failed init.
 func (r *onnxResources) destroy() {
 	if r.session != nil {
-		r.session.Destroy()
+		_ = r.session.Destroy()
 	}
 	if r.inputIDsTensor != nil {
-		r.inputIDsTensor.Destroy()
+		_ = r.inputIDsTensor.Destroy()
 	}
 	if r.attentionMaskTensor != nil {
-		r.attentionMaskTensor.Destroy()
+		_ = r.attentionMaskTensor.Destroy()
 	}
 	if r.tokenTypeIDsTensor != nil {
-		r.tokenTypeIDsTensor.Destroy()
+		_ = r.tokenTypeIDsTensor.Destroy()
 	}
 	if r.outputTensor != nil {
-		r.outputTensor.Destroy()
+		_ = r.outputTensor.Destroy()
 	}
 }
 
