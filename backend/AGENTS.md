@@ -65,7 +65,7 @@ From the repo root: `make test`, `make lint` (golangci-lint, config in `backend/
 | `INGEST_ON_START` | `false` | `true` runs one ingest right after startup |
 | `VAPID_PUBLIC_KEY` | — | Web Push; empty = push disabled. Generate via `make vapid` |
 | `VAPID_PRIVATE_KEY` | — | Web Push; empty = push disabled |
-| `VAPID_SUBJECT` | — | VAPID JWT `sub` claim; required when the keys are set |
+| `VAPID_SUBJECT` | — | Contact for push services (site URL or `mailto:`); push is disabled if empty |
 | `PUSH_CRON` | `0 9 * * *` | Daily push schedule (in `PUSH_TIMEZONE`) |
 | `PUSH_TIMEZONE` | `Europe/Skopje` | TZ for `PUSH_CRON` (per-entry `CRON_TZ`) |
 | `PUSH_MIN_SOURCES` | `3` | Min sources a cluster needs to be pushed |
