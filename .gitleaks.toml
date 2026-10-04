@@ -1,8 +1,10 @@
 # Default gitleaks rules plus an allowlist for pinned download checksums.
+# Uses the single [allowlist] table so older gitleaks (e.g. the GitHub action's
+# pinned binary) and newer releases both understand it.
 [extend]
 useDefault = true
 
-[[allowlists]]
+[allowlist]
 description = "SHA-256 checksums pinned in scripts are not secrets"
 regexTarget = "line"
 regexes = ['''_SHA256="[0-9a-f]{64}"''']
