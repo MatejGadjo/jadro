@@ -47,6 +47,9 @@ type JobsConfig struct {
 	IngestCron           string
 	CleanupCron          string
 	CleanupRetentionDays int
+	// IngestOnStart runs one ingest right after startup instead of waiting for
+	// the first cron tick — handy on a fresh install with an empty database.
+	IngestOnStart bool
 }
 
 // PushConfig holds Web Push (VAPID) settings. Push is optional: when the keys
@@ -73,6 +76,9 @@ type CacheConfig struct {
 
 type SecurityConfig struct {
 	AllowedOrigins []string
+	// TrustedProxies are the CIDRs whose X-Forwarded-For is believed when
+	// resolving the client IP (the nginx container's Docker network).
+	TrustedProxies []string
 }
 
 func NewConfig() (*Config, error) {
@@ -105,17 +111,19 @@ func NewConfig() (*Config, error) {
 			IngestCron:           getenvDefault("INGEST_CRON", "*/15 * * * *"),
 			CleanupCron:          getenvDefault("CLEANUP_CRON", "0 3 * * *"),
 			CleanupRetentionDays: int(int32FromEnvDefault("CLEANUP_RETENTION_DAYS", 3)),
+			IngestOnStart:        os.Getenv("INGEST_ON_START") == "true",
 		},
 		Cache: CacheConfig{
 			RedisURL: getenvDefault("REDIS_URL", ""),
 		},
 		Security: SecurityConfig{
 			AllowedOrigins: splitCommaEnv("ALLOWED_ORIGINS"),
+			TrustedProxies: splitCommaEnvDefault("TRUSTED_PROXIES", []string{"172.18.0.0/16"}),
 		},
 		Push: PushConfig{
 			VAPIDPublic:  os.Getenv("VAPID_PUBLIC_KEY"),
 			VAPIDPrivate: os.Getenv("VAPID_PRIVATE_KEY"),
-			VAPIDSubject: getenvDefault("VAPID_SUBJECT", "mailto:kontakt@jadro.mk"),
+			VAPIDSubject: os.Getenv("VAPID_SUBJECT"),
 			Cron:         getenvDefault("PUSH_CRON", "0 9 * * *"),
 			Timezone:     getenvDefault("PUSH_TIMEZONE", "Europe/Skopje"),
 			MinSources:   int(int32FromEnvDefault("PUSH_MIN_SOURCES", 3)),
@@ -143,11 +151,29 @@ func NewConfig() (*Config, error) {
 		c.Push.FreshHours = 16
 	}
 
+	if c.Push.Enabled() && c.Push.VAPIDSubject == "" {
+		// Push services reject notifications without a contact, so disable
+		// push rather than fail every send (or crash on startup).
+		log.Printf("warning: VAPID keys are set but VAPID_SUBJECT is empty — Web Push disabled; set it to your site URL or mailto: address")
+		c.Push.VAPIDPublic, c.Push.VAPIDPrivate = "", ""
+	}
+
+	if c.Env == "production" && len(c.Security.AllowedOrigins) == 0 {
+		log.Printf("warning: ALLOWED_ORIGINS is empty — CORS allows any origin; set it to your site's origin(s)")
+	}
+
 	if c.Env == "production" && !c.Push.Enabled() {
 		log.Printf("warning: VAPID keys not set — Web Push notifications disabled")
 	}
 
 	return c, nil
+}
+
+func splitCommaEnvDefault(key string, def []string) []string {
+	if v := splitCommaEnv(key); len(v) > 0 {
+		return v
+	}
+	return def
 }
 
 func splitCommaEnv(key string) []string {

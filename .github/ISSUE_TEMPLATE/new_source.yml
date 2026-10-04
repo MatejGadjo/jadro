@@ -1,0 +1,28 @@
+name: New news source
+description: Suggest an outlet to aggregate
+labels: [source]
+body:
+  - type: input
+    id: name
+    attributes:
+      label: Outlet name
+    validations:
+      required: true
+  - type: input
+    id: site
+    attributes:
+      label: Website
+      placeholder: https://example.mk
+    validations:
+      required: true
+  - type: input
+    id: rss
+    attributes:
+      label: Public RSS feed URL
+      placeholder: https://example.mk/feed/
+    validations:
+      required: true
+  - type: input
+    id: topic
+    attributes:
+      label: Main topic (if it only covers one, e.g. sport)

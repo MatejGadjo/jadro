@@ -1,10 +1,18 @@
 services:
   nginx:
-    image: nginx:alpine
+    image: nginx:alpine@sha256:df221db836e1754089190208cee7eeda94f233197056426eda74a43ab1abeac2
     ports:
-      - "127.0.0.1:8000:80"
+      - "127.0.0.1:${HTTP_PORT:-8000}:80"
     volumes:
-      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      # Mounted as a template: the image fills in ${CSP_*} and writes
+      # /etc/nginx/conf.d/default.conf at startup.
+      - ./nginx/nginx.conf:/etc/nginx/templates/default.conf.template:ro
+      - ./nginx/real-ip.d:/etc/nginx/real-ip.d:ro
+    environment:
+      # Space-separated extra origins for the Content-Security-Policy, needed
+      # only if you enable third-party analytics (see .env.example).
+      CSP_SCRIPT_SRC: ${CSP_SCRIPT_SRC:-}
+      CSP_CONNECT_SRC: ${CSP_CONNECT_SRC:-}
     depends_on:
       - backend
       - frontend
@@ -20,19 +28,22 @@ services:
       APP_ENV: ${APP_ENV:-development}
       LOG_LEVEL: ${LOG_LEVEL:-info}
       ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-}
+      TRUSTED_PROXIES: ${DOCKER_SUBNET:-172.18.0.0/16}
       INGEST_CRON: ${INGEST_CRON:-*/15 * * * *}
+      INGEST_ON_START: ${INGEST_ON_START:-false}
       CLEANUP_CRON: ${CLEANUP_CRON:-0 3 * * *}
       CLEANUP_RETENTION_DAYS: ${CLEANUP_RETENTION_DAYS:-3}
       # Web Push — empty VAPID keys disable push entirely. Set keys (make vapid)
       # in the root .env to enable. PUSH_CRON is evaluated in PUSH_TIMEZONE.
       VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
       VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
-      VAPID_SUBJECT: ${VAPID_SUBJECT:-mailto:kontakt@jadro.mk}
+      VAPID_SUBJECT: ${VAPID_SUBJECT:-}
       PUSH_CRON: ${PUSH_CRON:-0 9 * * *}
       PUSH_TIMEZONE: ${PUSH_TIMEZONE:-Europe/Skopje}
       PUSH_MIN_SOURCES: ${PUSH_MIN_SOURCES:-3}
       PUSH_FRESH_HOURS: ${PUSH_FRESH_HOURS:-16}
-      ONNX_RUNTIME_LIB_PATH: /app/models/onnxruntime-linux-x64-1.23.2/lib/libonnxruntime.so
+      # ORT_ARCH=aarch64 on ARM hosts (e.g. Apple Silicon); see scripts/download-models.sh
+      ONNX_RUNTIME_LIB_PATH: /app/models/onnxruntime-linux-${ORT_ARCH:-x64}-1.23.2/lib/libonnxruntime.so
       ONNX_MODEL_PATH: /app/models/paraphrase-multilingual-MiniLM-L12-v2/model.onnx
       ONNX_TOKENIZER_PATH: /app/models/paraphrase-multilingual-MiniLM-L12-v2/tokenizer.json
     volumes:
@@ -51,7 +62,7 @@ services:
     restart: unless-stopped
 
   postgres:
-    image: pgvector/pgvector:pg17
+    image: pgvector/pgvector:pg17@sha256:cf134a767f474095eeba57e0117be8e568e011a63f33fbf252f14c9b760f8e6f
     environment:
       POSTGRES_DB: newsaggregator
       POSTGRES_USER: news
@@ -59,7 +70,7 @@ services:
     ports:
       # Loopback-only — not reachable externally, only via SSH tunnel or from
       # the VPS itself. Do not change to a public bind (0.0.0.0).
-      - "127.0.0.1:5432:5432"
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -70,9 +81,9 @@ services:
     restart: unless-stopped
 
   redis:
-    image: redis:7-alpine
+    image: redis:7-alpine@sha256:858f009f9709ce576febc734aa78b8f6d624b82571f9ddb6bda4377c833b3499
     ports:
-      - "127.0.0.1:6379:6379"
+      - "127.0.0.1:${REDIS_PORT:-6379}:6379"
     restart: unless-stopped
     command: redis-server --maxmemory 100mb --maxmemory-policy allkeys-lru
 
@@ -81,11 +92,13 @@ volumes:
 
 networks:
   # Pin the default network subnet so it never drifts on a network teardown +
-  # recreate. The backend's SetTrustedProxies (internal/rest/server.go) hardcodes
-  # this range to trust X-Forwarded-For from the nginx container — if Docker
-  # auto-assigned a different subnet, ClientIP() would fall back to the nginx
-  # container IP and per-IP rate limiting would silently collapse to one bucket.
+  # recreate. The backend trusts X-Forwarded-For only from this range
+  # (TRUSTED_PROXIES) — if Docker auto-assigned a different subnet, ClientIP()
+  # would fall back to the nginx container IP and per-IP rate limiting would
+  # silently collapse to one bucket. If 172.18.0.0/16 clashes with another
+  # network on your machine, set DOCKER_SUBNET in .env (and update the
+  # set_real_ip_from line in nginx/nginx.conf to match).
   default:
     ipam:
       config:
-        - subnet: 172.18.0.0/16
+        - subnet: ${DOCKER_SUBNET:-172.18.0.0/16}

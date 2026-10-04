@@ -39,14 +39,14 @@ function HeaderMeta() {
 }
 
 export default function Header() {
-  const [isDarkMode, setIsDarkMode] = useState(false)
+  const [isDarkMode, setIsDarkMode] = useState(() => localStorage.getItem('darkMode') === 'true')
 
   useEffect(() => {
-    const darkModePreference = localStorage.getItem('darkMode') === 'true'
-    setIsDarkMode(darkModePreference)
-    if (darkModePreference) {
+    if (isDarkMode) {
       document.documentElement.classList.add('dark')
     }
+    // Only applies the stored preference on mount; toggleDarkMode handles changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const toggleDarkMode = (checked: boolean) => {

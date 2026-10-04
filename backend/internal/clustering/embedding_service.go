@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/MatejGadjo/NewsAggregator/domain"
-	"github.com/MatejGadjo/NewsAggregator/internal/ingestion/normalize"
-	"github.com/MatejGadjo/NewsAggregator/internal/logger"
+	"github.com/MatejGadjo/jadro/domain"
+	"github.com/MatejGadjo/jadro/internal/ingestion/normalize"
+	"github.com/MatejGadjo/jadro/internal/logger"
 	"github.com/jackc/pgx/v5"
 )
 

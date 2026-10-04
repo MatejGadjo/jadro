@@ -4,8 +4,9 @@ import (
 	"context"
 	"io"
 	"net/http"
+	"strings"
 
-	"github.com/MatejGadjo/NewsAggregator/domain"
+	"github.com/MatejGadjo/jadro/domain"
 	webpush "github.com/SherClockHolmes/webpush-go"
 )
 
@@ -22,7 +23,9 @@ func newWebpushSender(cfg Config) *webpushSender {
 	return &webpushSender{
 		vapidPublic:  cfg.VAPIDPublic,
 		vapidPrivate: cfg.VAPIDPrivate,
-		subscriber:   cfg.VAPIDSubject,
+		// webpush-go adds "mailto:" to anything that isn't an https URL, so
+		// drop ours to avoid sending "mailto:mailto:...".
+		subscriber: strings.TrimPrefix(cfg.VAPIDSubject, "mailto:"),
 	}
 }
 

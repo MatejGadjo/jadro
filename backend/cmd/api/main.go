@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/MatejGadjo/NewsAggregator/internal/app"
+	"github.com/MatejGadjo/jadro/internal/app"
 )
 
 var (

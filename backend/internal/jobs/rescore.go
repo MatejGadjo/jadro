@@ -3,8 +3,8 @@ package jobs
 import (
 	"context"
 
-	"github.com/MatejGadjo/NewsAggregator/internal/logger"
-	"github.com/MatejGadjo/NewsAggregator/internal/ranking"
+	"github.com/MatejGadjo/jadro/internal/logger"
+	"github.com/MatejGadjo/jadro/internal/ranking"
 )
 
 // RescoreJob recalculates scores for all clusters active in the last 48 hours.

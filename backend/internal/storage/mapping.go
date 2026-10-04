@@ -44,8 +44,6 @@ func pgtstzPtr(t pgtype.Timestamptz) *time.Time {
 	return &tt
 }
 
-func pgfloat4F64(f pgtype.Float4) float64 { return float64(f.Float32) }
-
 func pgfloat4Ptr(f pgtype.Float4) *float64 {
 	if !f.Valid {
 		return nil

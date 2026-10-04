@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/MatejGadjo/NewsAggregator/internal/service"
+	"github.com/MatejGadjo/jadro/internal/service"
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5"
 )

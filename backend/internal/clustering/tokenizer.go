@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/MatejGadjo/NewsAggregator/internal/logger"
+	"github.com/MatejGadjo/jadro/internal/logger"
 	"github.com/sugarme/tokenizer"
 	"github.com/sugarme/tokenizer/pretrained"
 )
@@ -91,4 +91,3 @@ func (st *sentenceTokenizer) truncateTextToTokens(text string, maxTokens int) (s
 
 	return st.tokenizer.Decode(encoding.Ids[:maxTokens], true), nil
 }
-

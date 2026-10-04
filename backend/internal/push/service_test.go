@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/MatejGadjo/NewsAggregator/domain"
-	"github.com/MatejGadjo/NewsAggregator/internal/logger"
+	"github.com/MatejGadjo/jadro/domain"
+	"github.com/MatejGadjo/jadro/internal/logger"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -238,4 +238,17 @@ func TestSendDaily_NoSubscriptionsIsNoOp(t *testing.T) {
 	require.NoError(t, svc.SendDaily(context.Background()))
 	assert.Empty(t, sender.calls)
 	assert.False(t, store.sentCalled, "no send recorded when there are no subscribers")
+}
+
+func TestNewWebpushSender_SubjectPrefix(t *testing.T) {
+	cases := map[string]string{
+		"mailto:me@example.com": "me@example.com", // library re-adds mailto:
+		"me@example.com":        "me@example.com",
+		"https://example.com":   "https://example.com",
+	}
+	for in, want := range cases {
+		if got := newWebpushSender(Config{VAPIDSubject: in}).subscriber; got != want {
+			t.Errorf("subject %q -> %q, want %q", in, got, want)
+		}
+	}
 }

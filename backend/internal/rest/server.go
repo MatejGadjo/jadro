@@ -2,21 +2,28 @@ package rest
 
 import (
 	"context"
+	"fmt"
 	nethttp "net/http"
 	"time"
 
-	"github.com/MatejGadjo/NewsAggregator/internal/config"
-	"github.com/MatejGadjo/NewsAggregator/internal/logger"
-	"github.com/MatejGadjo/NewsAggregator/internal/rest/handlers"
-	"github.com/MatejGadjo/NewsAggregator/internal/rest/middleware"
+	"github.com/MatejGadjo/jadro/internal/config"
+	"github.com/MatejGadjo/jadro/internal/logger"
+	"github.com/MatejGadjo/jadro/internal/rest/handlers"
+	"github.com/MatejGadjo/jadro/internal/rest/middleware"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/fx"
 )
 
 const handlerTimeout = 10 * time.Second
 
+// maxRequestBody comfortably fits a push subscription (endpoint + keys).
+const maxRequestBody = 16 << 10
+
 const (
 	defaultReadHeaderTimeout = 5 * time.Second
+	defaultReadTimeout       = 10 * time.Second
+	defaultIdleTimeout       = 60 * time.Second
+	defaultMaxHeaderBytes    = 32 << 10
 )
 
 func NewServer(
@@ -29,14 +36,17 @@ func NewServer(
 	prerender *handlers.PrerenderHandler,
 	push *handlers.PushHandler,
 	rl *middleware.RateLimiter,
-) *nethttp.Server {
+) (*nethttp.Server, error) {
 	r := gin.New()
 	// Trust X-Forwarded-For only from the nginx container (Docker bridge subnet).
 	// This makes ClientIP() return the real visitor IP for per-IP rate limiting.
-	r.SetTrustedProxies([]string{"172.18.0.0/16"}) //nolint:errcheck
+	if err := r.SetTrustedProxies(cfg.Security.TrustedProxies); err != nil {
+		return nil, fmt.Errorf("invalid TRUSTED_PROXIES: %w", err)
+	}
 	r.Use(middleware.CORS(cfg.Security.AllowedOrigins))
 	r.Use(gin.Recovery())
 	r.Use(middleware.Timeout(handlerTimeout))
+	r.Use(middleware.BodyLimit(maxRequestBody))
 
 	RegisterRoutes(r, feed, health, cluster, prerender, push, rl)
 
@@ -44,6 +54,9 @@ func NewServer(
 		Addr:              cfg.HTTP.Addr,
 		Handler:           r,
 		ReadHeaderTimeout: defaultReadHeaderTimeout,
+		ReadTimeout:       defaultReadTimeout,
+		IdleTimeout:       defaultIdleTimeout,
+		MaxHeaderBytes:    defaultMaxHeaderBytes,
 	}
 
 	lc.Append(fx.Hook{
@@ -69,5 +82,5 @@ func NewServer(
 		},
 	})
 
-	return srv
+	return srv, nil
 }

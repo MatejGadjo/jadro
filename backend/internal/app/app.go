@@ -4,18 +4,18 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/MatejGadjo/NewsAggregator/internal/cache"
-	"github.com/MatejGadjo/NewsAggregator/internal/clustering"
-	"github.com/MatejGadjo/NewsAggregator/internal/config"
-	"github.com/MatejGadjo/NewsAggregator/internal/ingestion/rss"
-	"github.com/MatejGadjo/NewsAggregator/internal/jobs"
-	"github.com/MatejGadjo/NewsAggregator/internal/logger"
-	"github.com/MatejGadjo/NewsAggregator/internal/push"
-	"github.com/MatejGadjo/NewsAggregator/internal/rest"
-	"github.com/MatejGadjo/NewsAggregator/internal/rest/handlers"
-	"github.com/MatejGadjo/NewsAggregator/internal/rest/middleware"
-	"github.com/MatejGadjo/NewsAggregator/internal/service"
-	"github.com/MatejGadjo/NewsAggregator/internal/storage"
+	"github.com/MatejGadjo/jadro/internal/cache"
+	"github.com/MatejGadjo/jadro/internal/clustering"
+	"github.com/MatejGadjo/jadro/internal/config"
+	"github.com/MatejGadjo/jadro/internal/ingestion/rss"
+	"github.com/MatejGadjo/jadro/internal/jobs"
+	"github.com/MatejGadjo/jadro/internal/logger"
+	"github.com/MatejGadjo/jadro/internal/push"
+	"github.com/MatejGadjo/jadro/internal/rest"
+	"github.com/MatejGadjo/jadro/internal/rest/handlers"
+	"github.com/MatejGadjo/jadro/internal/rest/middleware"
+	"github.com/MatejGadjo/jadro/internal/service"
+	"github.com/MatejGadjo/jadro/internal/storage"
 	"github.com/alitto/pond/v2"
 	"go.uber.org/fx"
 )
@@ -103,6 +103,7 @@ func Initialize() *fx.App {
 			return c
 		}),
 		fx.Provide(service.NewFeedService),
+		fx.Provide(service.NewHTTPImageProber),
 		fx.Provide(service.NewClusterService),
 		fx.Provide(service.NewHealthService),
 

@@ -3,7 +3,7 @@ package rss
 import (
 	"context"
 
-	"github.com/MatejGadjo/NewsAggregator/domain"
+	"github.com/MatejGadjo/jadro/domain"
 )
 
 type IngestionStore interface {

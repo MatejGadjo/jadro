@@ -89,8 +89,7 @@ debug_cluster.sql
 # Air (live reload) files
 tmp/
 
-# Docker
-.dockerignore
+# Local docker override
 docker-compose.override.yml
 
 # ML models and ONNX runtime (large binaries, download separately)

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useFeed } from '@/hooks/useFeed'
 import { mapClusterResponseArticles } from '@/lib/clusterArticles'
 import StoryCluster from '@/components/feed/StoryCluster'
@@ -21,18 +21,23 @@ export default function MobileTopStoriesFeed({ featuredCount, featuredClusterIds
 
   const { data, isLoading } = useFeed('', page)
 
-  useEffect(() => {
+  // Accumulate pages during render when new data (or a new featured set)
+  // arrives, rather than in an effect that would trigger a second render.
+  const [seen, setSeen] = useState({ data, featuredClusterIds })
+  if (data !== seen.data || featuredClusterIds !== seen.featuredClusterIds) {
+    setSeen({ data, featuredClusterIds })
     const details = data?.cluster_details
-    if (!details) return
-    const fresh = details.filter((d) => !featuredClusterIds.has(d.cluster.id))
-    setAccumulated((prev) => {
-      const existing = new Set(prev.map((d) => d.cluster.id))
-      const unseen = fresh.filter((d) => !existing.has(d.cluster.id))
-      return unseen.length > 0 ? [...prev, ...unseen] : prev
-    })
-    // Use raw count (before dedup) to reflect actual backend pagination state
-    setHasMore(details.length >= FEED_PAGE_SIZE)
-  }, [data, featuredClusterIds])
+    if (details) {
+      const fresh = details.filter((d) => !featuredClusterIds.has(d.cluster.id))
+      setAccumulated((prev) => {
+        const existing = new Set(prev.map((d) => d.cluster.id))
+        const unseen = fresh.filter((d) => !existing.has(d.cluster.id))
+        return unseen.length > 0 ? [...prev, ...unseen] : prev
+      })
+      // Use raw count (before dedup) to reflect actual backend pagination state
+      setHasMore(details.length >= FEED_PAGE_SIZE)
+    }
+  }
 
   const resolvedClusters: FeedCluster[] = accumulated.map((d) => ({
     id: d.cluster.id,
