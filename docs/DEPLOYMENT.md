@@ -16,7 +16,7 @@ visitor ─▶ [optional CDN / WAF] ─▶ server :443 host proxy (TLS) ─▶ 1
 ## 2. App
 
 ```bash
-git clone https://github.com/MatejGadjo/jadro.git /opt/jadro && cd /opt/jadro
+git clone https://github.com/MatejGadjo/jadro.git /srv/jadro && cd /srv/jadro
 cp .env.example .env         # then edit, see below
 ./scripts/download-models.sh
 docker compose up -d --build
@@ -80,7 +80,7 @@ Without a CDN, nginx's own per-IP limits still apply. You just have less protect
 | `VPS_HOST` | server IP or hostname |
 | `VPS_USER` | the deploy user |
 | `VPS_SSH_KEY` | a private key used only for deploys |
-| `VPS_APP_DIR` | e.g. `/opt/jadro` |
+| `VPS_APP_DIR` | e.g. `/srv/jadro` |
 
 Protect it with a GitHub **Environment** named `production` that has required reviewers, and branch protection on `master`.
 
