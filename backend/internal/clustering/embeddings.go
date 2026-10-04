@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 	"os"
+	"runtime"
 	"sync"
 	"time"
 
@@ -151,6 +152,20 @@ func initSession(cfg *config.Config, batchSize int) (*onnxResources, error) {
 	if err != nil {
 		r.destroy()
 		return nil, fmt.Errorf("create session options: %w", err)
+	}
+	defer func() { _ = sessionOptions.Destroy() }()
+
+	// By default ONNX Runtime starts one thread per host core. Under a container
+	// CPU limit (or on a shared server) that oversubscribes the CPU so badly that
+	// a single inference exceeds the embedding timeout. Match the CPUs we can
+	// actually use instead.
+	if err := sessionOptions.SetIntraOpNumThreads(onnxThreads(cfg.ONNX.Threads)); err != nil {
+		r.destroy()
+		return nil, fmt.Errorf("set intra-op threads: %w", err)
+	}
+	if err := sessionOptions.SetInterOpNumThreads(1); err != nil {
+		r.destroy()
+		return nil, fmt.Errorf("set inter-op threads: %w", err)
 	}
 
 	inputs := []ort.Value{r.inputIDsTensor, r.attentionMaskTensor}
@@ -329,4 +344,13 @@ func meanPoolAndNormalize(outputData []float32, attentionMask []int64, batchIdx,
 	}
 
 	return embedding, nil
+}
+
+// onnxThreads returns the configured thread count, or the CPUs available to
+// this process when unset. GOMAXPROCS reflects container CPU limits (Go 1.25+).
+func onnxThreads(configured int) int {
+	if configured > 0 {
+		return configured
+	}
+	return max(1, runtime.GOMAXPROCS(0))
 }

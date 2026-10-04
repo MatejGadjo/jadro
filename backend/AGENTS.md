@@ -59,6 +59,7 @@ From the repo root: `make test`, `make lint` (golangci-lint, config in `backend/
 | `ONNX_MODEL_PATH` | `./models/paraphrase-multilingual-MiniLM-L12-v2/model.onnx` | |
 | `ONNX_TOKENIZER_PATH` | `./models/paraphrase-multilingual-MiniLM-L12-v2/tokenizer.json` | |
 | `EMBEDDING_WORKERS` | `4` | |
+| `ONNX_THREADS` | CPUs available | ONNX Runtime intra-op threads; default follows the container CPU limit |
 | `INGEST_CRON` | `*/15 * * * *` | In-process ingest schedule |
 | `CLEANUP_CRON` | `0 3 * * *` | In-process cleanup schedule |
 | `CLEANUP_RETENTION_DAYS` | `3` | |

@@ -41,6 +41,9 @@ type ONNXConfig struct {
 	ModelPath      string
 	TokenizerPath  string
 	Workers        int
+	// Threads is ONNX Runtime's intra-op thread count. 0 = the CPUs available
+	// to this process (GOMAXPROCS, which honours container CPU limits).
+	Threads int
 }
 
 type JobsConfig struct {
@@ -106,6 +109,7 @@ func NewConfig() (*Config, error) {
 			ModelPath:      getenvDefault("ONNX_MODEL_PATH", "./models/paraphrase-multilingual-MiniLM-L12-v2/model.onnx"),
 			TokenizerPath:  getenvDefault("ONNX_TOKENIZER_PATH", "./models/paraphrase-multilingual-MiniLM-L12-v2/tokenizer.json"),
 			Workers:        int(int32FromEnvDefault("EMBEDDING_WORKERS", 4)),
+			Threads:        int(int32FromEnvDefault("ONNX_THREADS", 0)),
 		},
 		Jobs: JobsConfig{
 			IngestCron:           getenvDefault("INGEST_CRON", "*/15 * * * *"),
