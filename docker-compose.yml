@@ -17,8 +17,13 @@ services:
       - backend
       - frontend
     restart: unless-stopped
+    mem_limit: ${NGINX_MEM_LIMIT:-128m}
+    cpus: ${NGINX_CPUS:-0.5}
 
   backend:
+    # Resource caps keep Jadro from starving other apps on a shared server.
+    # Embedding is CPU-heavy (it will use every core it gets); memory stays
+    # ~0.7 GiB with the model loaded. Override any *_CPUS / *_MEM_LIMIT in .env.
     build:
       context: ./backend
       dockerfile: Dockerfile
@@ -54,12 +59,16 @@ services:
       redis:
         condition: service_started
     restart: unless-stopped
+    mem_limit: ${BACKEND_MEM_LIMIT:-1536m}
+    cpus: ${BACKEND_CPUS:-1.5}
 
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
     restart: unless-stopped
+    mem_limit: ${FRONTEND_MEM_LIMIT:-64m}
+    cpus: ${FRONTEND_CPUS:-0.25}
 
   postgres:
     image: pgvector/pgvector:pg17@sha256:ac08538c6f8b9904c33c8224c5e5706dbe760aca29db1d096972b4052c22a75d
@@ -79,12 +88,16 @@ services:
       timeout: 5s
       retries: 5
     restart: unless-stopped
+    mem_limit: ${POSTGRES_MEM_LIMIT:-512m}
+    cpus: ${POSTGRES_CPUS:-1.0}
 
   redis:
     image: redis:7-alpine@sha256:858f009f9709ce576febc734aa78b8f6d624b82571f9ddb6bda4377c833b3499
     ports:
       - "127.0.0.1:${REDIS_PORT:-6379}:6379"
     restart: unless-stopped
+    mem_limit: ${REDIS_MEM_LIMIT:-160m}
+    cpus: ${REDIS_CPUS:-0.25}
     command: redis-server --maxmemory 100mb --maxmemory-policy allkeys-lru
 
 volumes:
