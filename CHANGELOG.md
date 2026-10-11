@@ -6,6 +6,10 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Security
+- Go toolchain 1.26.9 and golang.org/x/net v0.60.0 (fixes GO-2026-6599..6611
+  in net/http, html/template, crypto/tls and mime/multipart).
+
 ### Changed
 - Go 1.26 (toolchain go1.26.8): fixes 25 standard-library vulnerabilities
   reported by govulncheck for 1.26.0; dependencies updated (minor/patch).
